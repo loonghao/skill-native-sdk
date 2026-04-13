@@ -49,7 +49,7 @@ dev = [
 ]
 
 [project.scripts]
-skill = "skill_native_sdk.cli.main:app"
+skn = "skill_native_sdk.cli.main:main"
 
 [project.urls]
 Homepage = "https://github.com/loonghao/skill-native-sdk"

@@ -6,8 +6,13 @@ pub const DEFAULT_SKILLS_DIR: &str = "./skills";
 
 #[derive(Parser)]
 #[command(
-    name = "skill",
-    about = "skill-native-sdk CLI — SKILL.md → anywhere",
+    name = "skn",
+    about = "skn — skill-native CLI  |  SKILL.md → MCP / OpenAI / LangChain / REST",
+    long_about = "skn (skill-native) is the CLI companion for skill-native-sdk.\n\
+\n\
+It discovers SKILL.md files across layered roots (project → user → system),\n\
+provides instant listing without parsing full tool definitions, and executes\n\
+skills through a zero-Python-dependency Rust runtime.",
     version
 )]
 pub struct Cli {

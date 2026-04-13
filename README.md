@@ -1,103 +1,233 @@
 # skill-native-sdk
 
-> **SKILL.md → anywhere**
->
-> Write once in SKILL.md, deploy as MCP / OpenAI / LangChain / REST
+<p align="center">
+  <b>SKILL.md → MCP / OpenAI / LangChain / REST</b><br/>
+  Write once. Deploy anywhere. Zero Python dependencies.
+</p>
 
-[![PyPI version](https://badge.fury.io/py/skill-native-sdk.svg)](https://badge.fury.io/py/skill-native-sdk)
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+<p align="center">
+  <a href="https://pypi.org/project/skill-native-sdk/"><img src="https://badge.fury.io/py/skill-native-sdk.svg" alt="PyPI"></a>
+  <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.7%2B-blue.svg" alt="Python 3.7+"></a>
+  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="MIT"></a>
+  <img src="https://img.shields.io/badge/core-Rust-orange.svg" alt="Rust core">
+</p>
+
+---
 
 ## What is skill-native-sdk?
 
-skill-native-sdk is the **next-generation AI tool integration architecture** that upgrades tool metadata from code comments to first-class structured declarations, enabling AI to understand the **semantics, safety boundaries, and execution relationships** of tools — not just their call signatures.
+`skill-native-sdk` is an **AI tool integration framework** where every capability is declared in a single `SKILL.md` file and automatically exposed as MCP, OpenAI function, or LangChain tool — without changing any Python code.
 
 ```
-SKILL.md (Skill Gene)
-  = Semantics + Safety Declarations + Execution Hints + Capability Graph
-        ↓
-  Runtime reads → Auto-builds typed execution layer
-        ↓
-  LLM gets not a "tool list" but a "capability map"
+SKILL.md  (the "skill gene")
+  name / domain / version / description
+  tools:  [name, safety semantics, I/O schema, chain hints]
+  runtime: { type: python, entry: skill_entry }
+  permissions: { network: false, filesystem: none }
+       ↓
+  skn list / describe / run / chain
+       ↓
+  MCP Server  ·  OpenAI functions  ·  LangChain tools  ·  REST
 ```
 
-## Core Innovation
+### Why not just use plain MCP?
 
-| Dimension | Traditional MCP | skill-native-sdk |
-|-----------|----------------|-----------------|
-| Deployment | Independent process | One SKILL.md file |
-| Protocol | JSON-RPC | None — LLM reads directly |
-| Tool description | `@tool` decorator in code | Natural language Markdown |
-| Parallel scheduling | None | `read_only` tools auto-parallel |
-| Result caching | None | `idempotent` tools auto-cached |
-| Next actions | None | `on_success` auto-injected |
-| Safety semantics | None | `destructive` → confirmation required |
+| Dimension | Plain MCP tool | skill-native-sdk |
+|-----------|---------------|------------------|
+| Metadata | `@tool` decorator | First-class `SKILL.md` |
+| Parallel scheduling | ✗ | `read_only` tools auto-parallel |
+| Result caching | ✗ | `idempotent` tools auto-cached |
+| Next-action hints | ✗ | `on_success` injected into LLM context |
+| Safety gate | ✗ | `destructive: true` → confirmation required |
+| Discovery | Manual registry | Layered BFS (project → user → system) |
+| Python overhead | Required | Zero runtime deps (Rust core + stdlib shim) |
 
-## Quick Start
+---
+
+## CLI — `skn`
+
+The CLI is named **`skn`** (sk·ill-n·ative) — short, unique, and conflict-free.
+
+```bash
+# Progressive discovery — lists skills without parsing full YAML
+skn list
+skn list --domain maya
+
+# Lazy-load full spec only for the target skill
+skn describe maya-animation
+skn graph maya-animation
+
+# Execute
+skn run maya-animation set_keyframe --params '{"object":"pCube1","time":24}'
+
+# Chain: follow on_success hints automatically
+skn chain maya-animation \
+    --entry set_keyframe \
+    --params '{"object":"pCube1","time":24}' \
+    --follow-success
+
+# Output formats
+skn run ... --output toon   # minimal tokens (~3-5× smaller)
+skn run ... --output mcp    # MCP tool_result wire format
+skn run ... --output json   # full JSON (default)
+```
+
+### How `skn list` works (progressive loading)
+
+```
+skn list
+  │
+  ├─ SkillsManager.scan_for_cwd(cwd)
+  │    ├─ Repo:   .codex/skills/  skills/  (walks up to git root)
+  │    └─ User:   ~/.skill-native/skills/
+  │
+  ├─ BFS each root  (MAX_DEPTH=6, MAX_DIRS=2000, hidden dirs skipped)
+  │    └─ parse_frontmatter_only() ← reads ONLY name/description/domain
+  │         (no full YAML parse — instant even with 1000 skills)
+  │
+  └─ Dedup by canonical path, sort by scope priority (Repo > User)
+       then display — zero full YAML loaded
+```
+
+`skn describe` / `skn run` call `meta.load()` **only** for the chosen skill.
+
+
+---
+
+## Installation
+
+```bash
+pip install skill-native-sdk        # includes skn CLI + Rust core wheel
+```
+
+After install, the `skn` command is available globally:
+
+```bash
+skn --version
+skn list
+```
+
+> **Python 3.7+** supported. The Rust core ships as a single ABI3 wheel for
+> Python 3.8–3.13+. Python 3.7 gets a separate `cp37` wheel.
+
+---
+
+## Writing a SKILL.md
+
+```yaml
+---
+name: maya-animation
+domain: maya
+version: "1.0.0"
+description: "Keyframe animation tools for Autodesk Maya"
+tags: [maya, animation, dcc]
+
+tools:
+  - name: set_keyframe
+    description: "Set a keyframe on a Maya object"
+    read_only: false
+    idempotent: false
+    input:
+      object: { type: string, required: true }
+      time:   { type: number, required: true }
+    on_success:
+      suggest: [get_keyframes]   # hint injected into LLM context after call
+
+  - name: get_keyframes
+    description: "Query all keyframes for an object"
+    read_only: true
+    idempotent: true              # safe to cache + parallelize
+
+runtime:
+  type: python
+  entry: skill_entry
+
+permissions:
+  network: false
+  filesystem: read
+---
+```
+
+Place at `./skills/maya-animation/SKILL.md` — `skn list` finds it instantly.
+
+---
+
+## Python API
 
 ```python
+# One-shot parse
+from skill_native_sdk.parser import parse_skill_md
+spec = parse_skill_md("./skills/maya-animation")
+print(spec.name, len(spec.tools))
+
+# Progressive discovery (recommended for large collections)
+from skill_native_sdk._skill_native_core import SkillsManager
+mgr = SkillsManager()
+outcome = mgr.scan_for_cwd(".")          # reads ONLY name+desc per skill
+for meta in outcome.metadata:
+    print(meta.scope, meta.name)         # "repo  maya-animation"
+    spec = meta.load()                   # lazy — full YAML only here
+
+# MCP server (3 lines)
 from skill_native_sdk import SkillRegistry
 from skill_native_sdk.adapters.mcp import MCPServer
-
-# 3 lines to a full MCP Server
-registry = SkillRegistry.from_path("./my-skills")
-server = MCPServer(registry)
-server.serve()
+MCPServer(SkillRegistry.from_path("./skills")).serve()
 ```
+
+---
 
 ## Architecture
 
 ```
-skill-native-sdk          ← Universal layer (this project)
-│   SkillSpec v2 (Python + Rust)
-│   ToolResult protocol
-│   DAG Scheduler
-│   Bridge trait
-│   MCP Adapter
-│   OpenAI Adapter
-│   LangChain Adapter
-│
-├── dcc-mcp-core          ← DCC-specific (independent)
-│   ├── dcc-mcp-maya
-│   ├── dcc-mcp-houdini
-│   └── dcc-mcp-blender
-│
-├── skill-finance         ← Finance industry skills
-├── skill-medical         ← Medical industry skills
-└── skill-xxx             ← Any industry plugin
+skill-native-sdk
+├── crates/
+│   ├── skill-schema   ← SKILL.md v2 parser · SkillScope · SkillsManager
+│   ├── skill-core     ← ToolResult · DAG scheduler · SafetyChecker · ResultCache
+│   ├── skill-runtime  ← Bridge trait · SubprocessBridge
+│   └── skill-cli      ← skn CLI (clap) · 5 subcommands · ANSI display
+└── python/skill_native_sdk/
+    ├── models.py      ← stdlib dataclasses (zero runtime deps)
+    ├── parser.py      ← Rust-first, stdlib fallback
+    ├── registry.py / executor.py
+    ├── cli/main.py    ← thin shim → _skill_native_core.run_cli(sys.argv)
+    └── adapters/mcp · openai
 ```
 
-> Analogy: **skill-native-sdk is WSGI, dcc-mcp-core is Django** — interface definition and best implementation evolve independently.
+---
 
-## CLI
+## Skill discovery roots
+
+| Scope | Paths | Priority |
+|-------|-------|---------|
+| **Repo** | `.codex/skills/`, `skills/` — walks up to git root | Highest |
+| **User** | `~/.skill-native/skills/` · `$SKILL_NATIVE_HOME/skills/` | Middle |
+| **System** | *(future: embedded built-ins)* | Lowest |
+
+Same canonical path → first root (highest scope) wins. BFS depth ≤ 6, ≤ 2000 dirs/root.
+
+---
+
+## Development
 
 ```bash
-# Discover capabilities
-skill list
-skill list --domain maya
-skill describe maya-animation
-skill graph maya-animation
-
-# Execute
-skill run maya-animation set_keyframe --object pCube1 --time 24
-
-# Chain execution (killer feature)
-skill chain maya-animation \
-    --entry set_keyframe \
-    --params '{"object": "pCube1", "time": 24}' \
-    --follow-success
-
-# Output formats
-skill run ... --output toon    # minimal tokens
-skill run ... --output mcp     # standard MCP
-skill run ... --output json    # full JSON
+cargo install just
+just dev        # maturin develop
+just preflight  # clippy -D warnings + fmt + cargo test
+just test       # pytest
+just build      # ABI3 wheel (Python 3.8+)
 ```
 
-## Documentation
+---
 
-- [SKILL_SPEC_V2.md](docs/SKILL_SPEC_V2.md) — Full SKILL.md v2 specification
-- [Examples](skills/examples/) — Cross-industry example skills
+## Related projects
+
+| Project | Role |
+|---------|------|
+| [dcc-mcp-core](https://github.com/loonghao/dcc-mcp-core) | DCC adapters (Maya, Houdini, Blender) |
+| [openai/codex](https://github.com/openai/codex) | Inspiration for layered skill discovery |
+
+---
 
 ## License
 
-MIT License — see [LICENSE](LICENSE)
+MIT — see [LICENSE](LICENSE)
