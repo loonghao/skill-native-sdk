@@ -1,19 +1,41 @@
 //! skill-schema — SKILL.md v2 schema types and YAML parser.
 //!
-//! This crate provides:
-//! - [`SkillSpec`] — the top-level parsed SKILL.md v2 structure
-//! - [`ToolMeta`] — a single tool declaration
-//! - [`parse_skill_md`] — parse a SKILL.md file or directory
-//! - [`scan_and_load`] — recursively discover all skills under a root path
+//! ## Quick start
+//!
+//! ```rust,no_run
+//! use skill_schema::manager::SkillsManager;
+//!
+//! // Progressive discovery (recommended)
+//! let mgr = SkillsManager::new();
+//! let outcome = mgr.scan_for_cwd(std::path::Path::new("."), false);
+//! for meta in &outcome.metadata {
+//!     println!("[{}] {} — {}", meta.scope, meta.name, meta.description);
+//!     let spec = meta.load().unwrap();   // lazy full parse
+//!     println!("  {} tools", spec.tools.len());
+//! }
+//!
+//! // One-shot backward-compatible scan
+//! use skill_schema::scan_and_load;
+//! let specs = scan_and_load(std::path::Path::new("./skills"));
+//! ```
 
+pub mod manager;
 pub mod models;
 pub mod parser;
+pub mod scope;
 
 #[cfg(feature = "python-bindings")]
 pub mod python;
 
+// Flat re-exports — keeps existing call sites unchanged
+pub use manager::{find_git_root, scan_explicit_roots, skill_roots_for_cwd, user_skills_dir,
+                  SkillsManager};
 pub use models::*;
-pub use parser::{parse_skill_md, parse_skill_md_str, scan_and_load};
+pub use parser::{
+    load_skills_from_roots, parse_frontmatter_only, parse_skill_md, parse_skill_md_str,
+    parse_skill_md_with_scope, scan_and_load,
+};
+pub use scope::{SkillRoot, SkillScope};
 
 // ── Error types ───────────────────────────────────────────────────────────────
 

@@ -1,29 +1,57 @@
 //! Command implementations.
+//!
+//! Discovery strategy (mirrors Codex):
+//! 1. `cmd_list` — uses `ScanOutcome.metadata` (fast, no full YAML parse)
+//! 2. All other commands — call `meta.load()` only for the target skill (lazy)
 
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use skill_core::ToolResult;
 use skill_runtime::bridge::{BridgeRouter, ExecutionRequest};
 use skill_runtime::SubprocessBridge;
-use skill_schema::{scan_and_load, SkillSpec};
+use skill_schema::manager::{scan_explicit_roots, SkillsManager};
+use skill_schema::models::SkillMetadata;
+use skill_schema::SkillSpec;
 
 use crate::args::OutputFormat;
 use crate::display::*;
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
-fn load_skills(skills_dir: &str) -> Result<Vec<SkillSpec>, String> {
-    let p = Path::new(skills_dir);
-    if !p.exists() {
-        return Err(format!("skills directory not found: {skills_dir}"));
+/// Return the scan outcome for the given `--skills-dir` (or cwd-auto-discovery).
+///
+/// If `skills_dir` is the default (`./skills`) **and** it doesn't exist on disk
+/// we fall back to `SkillsManager::scan_for_cwd` so the layered roots
+/// (`.codex/skills/`, `~/.skill-native/skills/`, etc.) are tried automatically.
+fn discover(skills_dir: &str) -> Result<Vec<SkillMetadata>, String> {
+    let explicit = Path::new(skills_dir);
+
+    let outcome = if explicit.is_dir() {
+        // Explicit dir supplied (or default `./skills` exists)
+        scan_explicit_roots(&[explicit])
+    } else {
+        // Fall back to SkillsManager layered discovery from cwd
+        let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+        let mgr = SkillsManager::new();
+        (*mgr.scan_for_cwd(&cwd, false)).clone()
+    };
+
+    if !outcome.errors.is_empty() {
+        for e in &outcome.errors {
+            eprintln!("{} {}: {}", yellow("warn:"), e.path.display(), e.message);
+        }
     }
-    Ok(scan_and_load(p))
+    Ok(outcome.metadata)
 }
 
-fn find_skill<'a>(specs: &'a [SkillSpec], name: &str) -> Result<&'a SkillSpec, String> {
-    specs.iter().find(|s| s.name == name)
-        .ok_or_else(|| format!("skill not found: {name}"))
+/// Find a skill by name inside a metadata list; load the full spec lazily.
+fn find_and_load(metadata: &[SkillMetadata], name: &str) -> Result<SkillSpec, String> {
+    let meta = metadata
+        .iter()
+        .find(|m| m.name == name)
+        .ok_or_else(|| format!("skill not found: {name}"))?;
+    meta.load().map_err(|e| e.to_string())
 }
 
 fn parse_params(raw: &Option<String>) -> Result<serde_json::Value, String> {
@@ -50,27 +78,28 @@ fn make_router() -> BridgeRouter {
 }
 
 // ── list ──────────────────────────────────────────────────────────────────────
+// Uses lightweight SkillMetadata — no full YAML parse required.
 
 pub fn cmd_list(skills_dir: &str, domain: &Option<String>) -> i32 {
-    let specs = match load_skills(skills_dir) {
-        Ok(s) => s, Err(e) => { eprintln!("{}", red(&e)); return 1; }
+    let metadata = match discover(skills_dir) {
+        Ok(m) => m, Err(e) => { eprintln!("{}", red(&e)); return 1; }
     };
-    let specs: Vec<_> = specs.iter().filter(|s| {
-        domain.as_ref().is_none_or(|d| &s.domain == d)
+    let filtered: Vec<_> = metadata.iter().filter(|m| {
+        domain.as_ref().is_none_or(|d| &m.domain == d)
     }).collect();
 
-    if specs.is_empty() {
+    if filtered.is_empty() {
         println!("{}", yellow("No skills found."));
         return 0;
     }
 
-    println!("\n{}", bold(&format!("{:<28} {:<12} {:<8} {:>5}  {}",
-        "Name", "Domain", "Version", "Tools", "Description")));
-    println!("{}", dim(&"─".repeat(72)));
-    for s in &specs {
-        let desc: String = s.description.chars().take(40).collect();
-        println!("{:<38} {:<12} {:<8} {:>5}  {}",
-            cyan(&s.name), s.domain, s.version, s.tools.len(), desc);
+    println!("\n{}", bold(&format!("{:<28} {:<8} {:<8} {:<7}  {}",
+        "Name", "Domain", "Version", "Scope", "Description")));
+    println!("{}", dim(&"─".repeat(76)));
+    for m in &filtered {
+        let desc: String = m.description.chars().take(44).collect();
+        println!("{:<38} {:<8} {:<8} {:<7}  {}",
+            cyan(&m.name), m.domain, m.version, dim(m.scope.as_str()), desc);
     }
     println!();
     0
@@ -79,10 +108,10 @@ pub fn cmd_list(skills_dir: &str, domain: &Option<String>) -> i32 {
 // ── describe ──────────────────────────────────────────────────────────────────
 
 pub fn cmd_describe(skill_name: &str, skills_dir: &str) -> i32 {
-    let specs = match load_skills(skills_dir) {
-        Ok(s) => s, Err(e) => { eprintln!("{}", red(&e)); return 1; }
+    let metadata = match discover(skills_dir) {
+        Ok(m) => m, Err(e) => { eprintln!("{}", red(&e)); return 1; }
     };
-    let spec = match find_skill(&specs, skill_name) {
+    let spec = match find_and_load(&metadata, skill_name) {
         Ok(s) => s, Err(e) => { eprintln!("{}", red(&e)); return 1; }
     };
 
@@ -114,10 +143,10 @@ pub fn cmd_describe(skill_name: &str, skills_dir: &str) -> i32 {
 // ── graph ─────────────────────────────────────────────────────────────────────
 
 pub fn cmd_graph(skill_name: &str, skills_dir: &str) -> i32 {
-    let specs = match load_skills(skills_dir) {
-        Ok(s) => s, Err(e) => { eprintln!("{}", red(&e)); return 1; }
+    let metadata = match discover(skills_dir) {
+        Ok(m) => m, Err(e) => { eprintln!("{}", red(&e)); return 1; }
     };
-    let spec = match find_skill(&specs, skill_name) {
+    let spec = match find_and_load(&metadata, skill_name) {
         Ok(s) => s, Err(e) => { eprintln!("{}", red(&e)); return 1; }
     };
 
@@ -153,10 +182,10 @@ pub fn cmd_run(
     fmt: &OutputFormat,
     skills_dir: &str,
 ) -> i32 {
-    let specs = match load_skills(skills_dir) {
-        Ok(s) => s, Err(e) => { eprintln!("{}", red(&e)); return 1; }
+    let metadata = match discover(skills_dir) {
+        Ok(m) => m, Err(e) => { eprintln!("{}", red(&e)); return 1; }
     };
-    let spec = match find_skill(&specs, skill_name) {
+    let spec = match find_and_load(&metadata, skill_name) {
         Ok(s) => s, Err(e) => { eprintln!("{}", red(&e)); return 1; }
     };
     let params = match parse_params(params_raw) {
@@ -170,7 +199,7 @@ pub fn cmd_run(
         params,
         confirmed: false,
     };
-    match router.execute(spec, &req) {
+    match router.execute(&spec, &req) {
         Ok(resp) => { print_result(&resp.result, fmt); if resp.result.success { 0 } else { 1 } }
         Err(e)   => { eprintln!("{}", red(&e.to_string())); 1 }
     }
@@ -186,10 +215,10 @@ pub fn cmd_chain(
     fmt: &OutputFormat,
     skills_dir: &str,
 ) -> i32 {
-    let specs = match load_skills(skills_dir) {
-        Ok(s) => s, Err(e) => { eprintln!("{}", red(&e)); return 1; }
+    let metadata = match discover(skills_dir) {
+        Ok(m) => m, Err(e) => { eprintln!("{}", red(&e)); return 1; }
     };
-    let spec = match find_skill(&specs, skill_name) {
+    let spec = match find_and_load(&metadata, skill_name) {
         Ok(s) => s, Err(e) => { eprintln!("{}", red(&e)); return 1; }
     };
     let entry_params = match parse_params(params_raw) {
@@ -212,7 +241,7 @@ pub fn cmd_chain(
             confirmed: false,
         };
 
-        let result = match router.execute(spec, &req) {
+        let result = match router.execute(&spec, &req) {
             Ok(resp) => resp.result,
             Err(e)   => { eprintln!("{}", red(&e.to_string())); return 1; }
         };

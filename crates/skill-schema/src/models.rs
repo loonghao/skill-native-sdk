@@ -1,7 +1,11 @@
 //! SKILL.md v2 data models — serde types for deserialisation + optional PyO3 classes.
 
+use std::path::PathBuf;
+
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
+
+use crate::scope::SkillScope;
 
 // ── FieldSchema ──────────────────────────────────────────────────────────────
 
@@ -103,6 +107,76 @@ fn default_latency() -> String {
     "fast".to_string()
 }
 
+// ── SkillMetadata ─────────────────────────────────────────────────────────────
+
+/// Lightweight metadata loaded during discovery (no full YAML parse).
+///
+/// Only `name`, `description`, and a few index fields are populated.
+/// Call [`SkillMetadata::load`] to obtain the full [`SkillSpec`].
+#[derive(Debug, Clone)]
+pub struct SkillMetadata {
+    pub name: String,
+    pub description: String,
+    pub domain: String,
+    pub version: String,
+    pub tags: Vec<String>,
+    /// Priority scope this skill was discovered under.
+    pub scope: SkillScope,
+    /// Absolute path to the `SKILL.md` file.
+    pub path_to_skill_md: PathBuf,
+    /// Parent directory of `path_to_skill_md`.
+    pub source_dir: String,
+}
+
+impl SkillMetadata {
+    /// Lazily load the full [`SkillSpec`] from disk.
+    pub fn load(&self) -> Result<SkillSpec, crate::ParseError> {
+        crate::parser::parse_skill_md_with_scope(&self.path_to_skill_md, self.scope)
+    }
+}
+
+// ── ScanError ─────────────────────────────────────────────────────────────────
+
+/// A skill file that failed to parse during discovery.
+#[derive(Debug, Clone)]
+pub struct ScanError {
+    /// Path to the offending `SKILL.md`.
+    pub path: PathBuf,
+    /// Human-readable error description.
+    pub message: String,
+}
+
+// ── ScanOutcome ───────────────────────────────────────────────────────────────
+
+/// Result of a progressive skill discovery scan.
+///
+/// `metadata` contains lightweight records for every skill found.
+/// Use [`SkillMetadata::load`] to obtain a full [`SkillSpec`] on demand.
+#[derive(Debug, Default, Clone)]
+pub struct ScanOutcome {
+    /// Lightweight records — sorted by scope priority, then name.
+    pub metadata: Vec<SkillMetadata>,
+    /// Skills that could not be parsed.
+    pub errors: Vec<ScanError>,
+}
+
+impl ScanOutcome {
+    /// Total number of successfully discovered skills.
+    pub fn len(&self) -> usize {
+        self.metadata.len()
+    }
+
+    /// Whether no skills were found.
+    pub fn is_empty(&self) -> bool {
+        self.metadata.is_empty()
+    }
+
+    /// Find metadata by skill name.
+    pub fn find(&self, name: &str) -> Option<&SkillMetadata> {
+        self.metadata.iter().find(|m| m.name == name)
+    }
+}
+
 // ── SkillSpec ─────────────────────────────────────────────────────────────────
 
 /// Top-level SKILL.md v2 specification — parsed from YAML front-matter.
@@ -125,9 +199,16 @@ pub struct SkillSpec {
     // Permissions
     pub permissions: Permissions,
 
-    // Set at load time (not in YAML)
+    // Set at load time (not in YAML) ─────────────────────────────────────────
+    /// Parent directory of the SKILL.md file.
     #[serde(skip)]
     pub source_dir: String,
+    /// Priority scope this skill was discovered under.
+    #[serde(skip)]
+    pub scope: SkillScope,
+    /// Absolute path to the SKILL.md file (empty when parsed from string).
+    #[serde(skip)]
+    pub path_to_skill_md: PathBuf,
 }
 
 impl SkillSpec {
