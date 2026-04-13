@@ -1,6 +1,6 @@
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["maturin>=1.7,<2"]
+build-backend = "maturin"
 
 [project]
 name = "skill-native-sdk"
@@ -52,8 +52,15 @@ Homepage = "https://github.com/loonghao/skill-native-sdk"
 Repository = "https://github.com/loonghao/skill-native-sdk"
 Issues = "https://github.com/loonghao/skill-native-sdk/issues"
 
-[tool.hatch.build.targets.wheel]
-packages = ["python/skill_native_sdk"]
+[tool.maturin]
+# Python source packages are in python/
+python-source = "python"
+# Feature flag that activates PyO3 bindings in all crates
+features = ["python-bindings", "ext-module"]
+# The extension module name matches `fn _skill_native_core` in src/lib.rs
+module-name = "skill_native_sdk._skill_native_core"
+# Build for abi3 (stable ABI) — one wheel for all Python 3.10+
+python-packages = ["skill_native_sdk"]
 
 [tool.ruff]
 line-length = 100

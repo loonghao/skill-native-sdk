@@ -1,0 +1,24 @@
+[package]
+name = "skill-core"
+description = "Skill-Native SDK core: ToolResult, SafetyChecker, ResultCache, DAG scheduler"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+skill-schema.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+dashmap.workspace = true
+pyo3 = { workspace = true, optional = true }
+
+[features]
+default = []
+python-bindings = ["pyo3"]
+
+[dev-dependencies]
+serde_json.workspace = true

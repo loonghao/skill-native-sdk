@@ -1,4 +1,11 @@
-"""SKILL.md v2 parser — reads and validates skill specification files."""
+"""SKILL.md v2 parser — reads and validates skill specification files.
+
+When the compiled Rust extension (``_skill_native_core``) is available,
+parsing is delegated to the zero-copy Rust YAML parser which is ~10× faster
+and uses a pre-compiled regex-free front-matter extractor.
+The returned objects are still Python ``SkillSpec`` (Pydantic) models —
+the Rust parser is used only for YAML extraction + deserialization.
+"""
 from __future__ import annotations
 
 import re

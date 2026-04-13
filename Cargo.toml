@@ -1,0 +1,77 @@
+# skill-native-sdk Workspace
+# Rust-powered core for the Skill-Native MCP ecosystem
+
+[workspace]
+members = [
+    "crates/skill-schema",
+    "crates/skill-core",
+    "crates/skill-runtime",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+authors = ["Hal <13111745+loonghao@users.noreply.github.com>"]
+license = "MIT"
+repository = "https://github.com/loonghao/skill-native-sdk"
+
+[workspace.dependencies]
+# Internal crates
+skill-schema = { path = "crates/skill-schema" }
+skill-core   = { path = "crates/skill-core" }
+skill-runtime = { path = "crates/skill-runtime" }
+
+# Shared external dependencies (single version across workspace)
+pyo3         = { version = "0.28", features = ["multiple-pymethods"] }
+serde        = { version = "1.0", features = ["derive"] }
+serde_json   = "1.0"
+serde_yaml   = "0.9"
+thiserror    = "2.0"
+dashmap      = "6.1"
+anyhow       = "1.0"
+indexmap     = { version = "2.0", features = ["serde"] }
+
+# Root package — Python bindings entry point
+# Compiles to `_skill_native_core.pyd` / `_skill_native_core.so`
+[package]
+name = "skill-native-sdk"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "SKILL.md → anywhere — Rust-powered core library"
+keywords = ["mcp", "ai", "skill", "llm", "pyo3"]
+
+[lib]
+name = "_skill_native_core"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+skill-schema  = { workspace = true }
+skill-core    = { workspace = true }
+skill-runtime = { workspace = true }
+pyo3 = { workspace = true, optional = true }
+
+[dev-dependencies]
+serde_json.workspace = true
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
+
+[features]
+default = []
+python-bindings = [
+    "pyo3",
+    "skill-schema/python-bindings",
+    "skill-core/python-bindings",
+    "skill-runtime/python-bindings",
+]
+abi3-py310 = ["pyo3/abi3-py310"]
+ext-module = ["pyo3/extension-module"]

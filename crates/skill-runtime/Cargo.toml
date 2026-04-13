@@ -1,0 +1,24 @@
+[package]
+name = "skill-runtime"
+description = "Skill-Native SDK runtime bridges: Python, subprocess, HTTP"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+skill-schema.workspace = true
+skill-core.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+pyo3 = { workspace = true, optional = true }
+
+[features]
+default = []
+python-bindings = ["pyo3"]
+
+[dev-dependencies]
+serde_json.workspace = true
