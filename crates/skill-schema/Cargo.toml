@@ -1,12 +1,15 @@
 [package]
 name = "skill-schema"
-description = "SKILL.md v2 schema types and zero-copy YAML parser"
+description = "SKILL.md v2 schema types, YAML parser, and progressive layered skill discovery"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 authors.workspace = true
 license.workspace = true
 repository.workspace = true
+documentation = "https://docs.rs/skill-schema"
+keywords = ["mcp", "ai", "skill", "llm", "yaml"]
+categories = ["parser-implementations", "development-tools", "data-structures"]
 
 [dependencies]
 serde.workspace = true

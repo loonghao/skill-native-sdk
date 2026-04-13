@@ -1,12 +1,15 @@
 [package]
 name = "skill-runtime"
-description = "Skill-Native SDK runtime bridges: Python, subprocess, HTTP"
+description = "Skill-Native SDK runtime bridges: Python subprocess and HTTP execution for SKILL.md tools"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 authors.workspace = true
 license.workspace = true
 repository.workspace = true
+documentation = "https://docs.rs/skill-runtime"
+keywords = ["mcp", "ai", "skill", "subprocess", "runtime"]
+categories = ["development-tools", "os"]
 
 [dependencies]
 skill-schema.workspace = true

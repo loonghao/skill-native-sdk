@@ -48,6 +48,10 @@ license.workspace = true
 repository.workspace = true
 description = "SKILL.md → anywhere — Rust-powered core library"
 keywords = ["mcp", "ai", "skill", "llm", "pyo3"]
+# This root package is a PyO3 cdylib (Python extension _skill_native_core).
+# Individual sub-crates (skill-schema, skill-core, skill-runtime, skill-cli)
+# are published to crates.io separately.
+publish = false
 
 [lib]
 name = "_skill_native_core"

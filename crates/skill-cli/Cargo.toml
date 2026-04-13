@@ -1,12 +1,15 @@
 [package]
 name = "skill-cli"
-description = "Rust-powered CLI for skill-native-sdk (clap-based, zero Python deps)"
+description = "skn — the Rust-powered CLI for skill-native-sdk: list/describe/run/chain SKILL.md tools"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 authors.workspace = true
 license.workspace = true
 repository.workspace = true
+documentation = "https://docs.rs/skill-cli"
+keywords = ["mcp", "ai", "skill", "cli", "tool"]
+categories = ["command-line-utilities", "development-tools"]
 
 [dependencies]
 skill-schema.workspace = true

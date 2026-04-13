@@ -7,6 +7,9 @@ rust-version.workspace = true
 authors.workspace = true
 license.workspace = true
 repository.workspace = true
+documentation = "https://docs.rs/skill-core"
+keywords = ["mcp", "ai", "tool", "llm", "dag"]
+categories = ["development-tools", "algorithms"]
 
 [dependencies]
 skill-schema.workspace = true
