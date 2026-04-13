@@ -45,22 +45,27 @@ impl DagScheduler {
 
         for tool_name in requested {
             if let Some(tool) = spec.get_tool(tool_name) {
-                nodes.insert(tool_name.to_string(), DagNode {
-                    tool_name: tool_name.to_string(),
-                    can_parallelize: tool.read_only,
-                    deps: Vec::new(), // explicit deps could be added via on_success hints
-                });
+                nodes.insert(
+                    tool_name.to_string(),
+                    DagNode {
+                        tool_name: tool_name.to_string(),
+                        can_parallelize: tool.read_only,
+                        deps: Vec::new(), // explicit deps could be added via on_success hints
+                    },
+                );
             }
         }
 
         // Topological sort (Kahn's algorithm) — handles dependency ordering
         // For simplicity: parallel group = all read_only with no deps in this batch
-        let parallel: Vec<String> = nodes.values()
+        let parallel: Vec<String> = nodes
+            .values()
             .filter(|n| n.can_parallelize && n.deps.is_empty())
             .map(|n| n.tool_name.clone())
             .collect();
 
-        let sequential: Vec<String> = nodes.values()
+        let sequential: Vec<String> = nodes
+            .values()
             .filter(|n| !n.can_parallelize || !n.deps.is_empty())
             .map(|n| n.tool_name.clone())
             .collect();
@@ -80,7 +85,11 @@ impl DagScheduler {
         let total_tools = nodes.len();
         let has_parallelism = stages.iter().any(|s| s.len() > 1);
 
-        ExecutionPlan { stages, total_tools, has_parallelism }
+        ExecutionPlan {
+            stages,
+            total_tools,
+            has_parallelism,
+        }
     }
 
     /// Check if two tools from the same spec can run in parallel.
@@ -102,11 +111,14 @@ mod tests {
         SkillSpec {
             name: "test".to_string(),
             domain: "test".to_string(),
-            tools: tools.into_iter().map(|(name, ro)| ToolMeta {
-                name: name.to_string(),
-                read_only: ro,
-                ..Default::default()
-            }).collect(),
+            tools: tools
+                .into_iter()
+                .map(|(name, ro)| ToolMeta {
+                    name: name.to_string(),
+                    read_only: ro,
+                    ..Default::default()
+                })
+                .collect(),
             ..Default::default()
         }
     }

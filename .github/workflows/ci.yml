@@ -1,0 +1,144 @@
+name: CI
+
+# Core CI: Rust checks + wheel build + Python tests + lint.
+# Triggers on every PR to main and every push to main.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ── Rust checks: cargo check + clippy + fmt + cargo test ──────────────────
+  rust-check:
+    name: Rust (${{ matrix.os }})
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+      fail-fast: false
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - uses: extractions/setup-just@v4
+      - name: Cache Cargo
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.toml') }}
+          restore-keys: ${{ runner.os }}-cargo-
+      - name: Preflight (check + clippy + fmt + test)
+        run: just preflight
+
+  # ── Rust code coverage (tarpaulin, Linux only) ────────────────────────────
+  rust-coverage:
+    name: Rust coverage
+    needs: [rust-check]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Cache Cargo
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ubuntu-cargo-tarpaulin-${{ hashFiles('**/Cargo.toml') }}
+          restore-keys: ubuntu-cargo-
+      - name: Install cargo-tarpaulin
+        run: cargo install cargo-tarpaulin --locked
+      - name: Run Rust coverage
+        run: cargo tarpaulin --workspace --out Xml --output-dir coverage/ --timeout 300
+      - name: Upload Rust coverage to Codecov
+        uses: codecov/codecov-action@v6
+        with:
+          files: coverage/cobertura.xml
+          flags: rust
+          name: rust-coverage
+          fail_ci_if_error: false
+
+  # ── Build ABI3 wheel (one per OS, reused by python-test) ─────────────────
+  build-wheel:
+    name: Build wheel (${{ matrix.os }})
+    needs: [rust-check]
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+      fail-fast: false
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: extractions/setup-just@v4
+      - uses: ./.github/actions/build-wheel
+        with:
+          python-version: '3.12'
+          artifact-name: wheel-${{ matrix.os }}
+
+  # ── Python tests: matrix over OS × Python versions ───────────────────────
+  python-test:
+    name: Test (${{ matrix.os }}, py${{ matrix.python-version }})
+    needs: [build-wheel]
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+      fail-fast: false
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+      - uses: extractions/setup-just@v4
+      - name: Download wheel
+        uses: actions/download-artifact@v8
+        with:
+          name: wheel-${{ matrix.os }}
+          path: dist/
+      - name: Install wheel + test deps
+        shell: bash
+        run: |
+          pip install --no-index --find-links dist skill-native-sdk
+          pip install pytest pytest-cov pyyaml pydantic
+      - name: Test with coverage
+        run: just test-cov
+      - name: Upload Python coverage to Codecov
+        if: matrix.python-version == '3.13' && matrix.os == 'ubuntu-latest'
+        uses: codecov/codecov-action@v6
+        with:
+          files: coverage.xml
+          flags: python
+          name: python-coverage
+          fail_ci_if_error: false
+
+  # ── Lint Python source ────────────────────────────────────────────────────
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - uses: extractions/setup-just@v4
+      - name: Install ruff
+        run: pip install ruff
+      - name: Lint
+        run: just lint-py

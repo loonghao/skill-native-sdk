@@ -48,12 +48,12 @@ impl Bridge for SubprocessBridge {
         req: &ExecutionRequest,
     ) -> Result<ExecutionResponse, BridgeError> {
         // Resolve the script file
-        let tool = spec.get_tool(&req.tool_name).ok_or_else(|| {
-            BridgeError::EntryNotFound {
+        let tool = spec
+            .get_tool(&req.tool_name)
+            .ok_or_else(|| BridgeError::EntryNotFound {
                 entry: req.tool_name.clone(),
                 script: spec.source_dir.clone(),
-            }
-        })?;
+            })?;
 
         let source_file = tool.source_file.as_deref().ok_or_else(|| {
             BridgeError::ScriptNotFound(format!("tool '{}' has no source_file", req.tool_name))
@@ -61,7 +61,9 @@ impl Bridge for SubprocessBridge {
 
         let script_path = Path::new(&spec.source_dir).join(source_file);
         if !script_path.exists() {
-            return Err(BridgeError::ScriptNotFound(script_path.display().to_string()));
+            return Err(BridgeError::ScriptNotFound(
+                script_path.display().to_string(),
+            ));
         }
 
         let interpreter = spec
@@ -95,7 +97,11 @@ impl Bridge for SubprocessBridge {
         let result: ToolResult = serde_json::from_str(stdout.trim())
             .map_err(|e| BridgeError::OutputParse(format!("{e}: output was: {stdout}")))?;
 
-        Ok(ExecutionResponse { result, duration_ms, bridge_name: self.name() })
+        Ok(ExecutionResponse {
+            result,
+            duration_ms,
+            bridge_name: self.name(),
+        })
     }
 
     fn supports(&self, runtime_type: &str) -> bool {

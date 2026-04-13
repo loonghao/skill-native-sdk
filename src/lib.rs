@@ -51,7 +51,8 @@ mod tests {
         let spec = skill_schema::parse_skill_md_str(
             "---\nname: test\ntools: []\n---\n",
             "/tmp".to_string(),
-        ).unwrap();
+        )
+        .unwrap();
         assert_eq!(spec.name, "test");
 
         let cache = skill_core::ResultCache::new(10);

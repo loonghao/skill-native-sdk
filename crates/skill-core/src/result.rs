@@ -9,7 +9,7 @@ use serde_json::Value;
 /// - [`ToolResult::to_json`]  — full JSON (standard)
 /// - [`ToolResult::to_toon`]  — minimal token format for LLM consumption
 /// - [`ToolResult::to_mcp`]   — MCP `tool_result` wire format
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub struct ToolResult {
     pub success: bool,
     pub message: String,
@@ -17,19 +17,6 @@ pub struct ToolResult {
     pub next_actions: Vec<String>,
     pub error: Option<String>,
     pub metadata: std::collections::HashMap<String, Value>,
-}
-
-impl Default for ToolResult {
-    fn default() -> Self {
-        Self {
-            success: true,
-            message: String::new(),
-            data: None,
-            next_actions: Vec::new(),
-            error: None,
-            metadata: Default::default(),
-        }
-    }
 }
 
 impl ToolResult {
@@ -85,9 +72,15 @@ impl ToolResult {
         let mut m = serde_json::Map::new();
         m.insert("ok".to_string(), Value::Bool(self.success));
         m.insert("msg".to_string(), Value::String(self.message.clone()));
-        m.insert("next".to_string(), Value::Array(
-            self.next_actions.iter().map(|s| Value::String(s.clone())).collect()
-        ));
+        m.insert(
+            "next".to_string(),
+            Value::Array(
+                self.next_actions
+                    .iter()
+                    .map(|s| Value::String(s.clone()))
+                    .collect(),
+            ),
+        );
         if let Some(err) = &self.error {
             m.insert("err".to_string(), Value::String(err.clone()));
         }
@@ -109,6 +102,10 @@ impl ToolResult {
 
 impl std::fmt::Display for ToolResult {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "ToolResult(success={}, msg={:?})", self.success, self.message)
+        write!(
+            f,
+            "ToolResult(success={}, msg={:?})",
+            self.success, self.message
+        )
     }
 }

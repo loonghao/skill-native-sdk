@@ -25,7 +25,9 @@ impl PyToolResult {
         if success {
             PyToolResult(ToolResult::ok(message))
         } else {
-            PyToolResult(ToolResult::fail(error.unwrap_or_else(|| message.to_string())))
+            PyToolResult(ToolResult::fail(
+                error.unwrap_or_else(|| message.to_string()),
+            ))
         }
     }
 
@@ -39,12 +41,26 @@ impl PyToolResult {
         PyToolResult(ToolResult::fail(error))
     }
 
-    #[getter] fn success(&self) -> bool { self.0.success }
-    #[getter] fn message(&self) -> &str { &self.0.message }
-    #[getter] fn error(&self) -> Option<&str> { self.0.error.as_deref() }
-    #[getter] fn next_actions(&self) -> Vec<String> { self.0.next_actions.clone() }
+    #[getter]
+    fn success(&self) -> bool {
+        self.0.success
+    }
+    #[getter]
+    fn message(&self) -> &str {
+        &self.0.message
+    }
+    #[getter]
+    fn error(&self) -> Option<&str> {
+        self.0.error.as_deref()
+    }
+    #[getter]
+    fn next_actions(&self) -> Vec<String> {
+        self.0.next_actions.clone()
+    }
 
-    fn to_json(&self) -> String { self.0.to_json() }
+    fn to_json(&self) -> String {
+        self.0.to_json()
+    }
 
     fn to_toon<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
         let json_str = serde_json::to_string(&self.0.to_toon()).unwrap_or_default();
@@ -65,7 +81,10 @@ impl PyToolResult {
     }
 
     fn __repr__(&self) -> String {
-        format!("RustToolResult(success={}, msg={:?})", self.0.success, self.0.message)
+        format!(
+            "RustToolResult(success={}, msg={:?})",
+            self.0.success, self.0.message
+        )
     }
 }
 
@@ -79,11 +98,20 @@ impl PySafetyChecker {
     #[new]
     #[pyo3(signature = (block_destructive=false, block_external_cost=false))]
     fn new(block_destructive: bool, block_external_cost: bool) -> Self {
-        PySafetyChecker(SafetyChecker::new(SafetyPolicy { block_destructive, block_external_cost }))
+        PySafetyChecker(SafetyChecker::new(SafetyPolicy {
+            block_destructive,
+            block_external_cost,
+        }))
     }
 
     /// Check a tool. Returns `("allow", "")`, `("confirm", reason)`, or `("block", reason)`.
-    fn check(&self, tool_name: &str, destructive: bool, cost: &str, confirmed: bool) -> (String, String) {
+    fn check(
+        &self,
+        tool_name: &str,
+        destructive: bool,
+        cost: &str,
+        confirmed: bool,
+    ) -> (String, String) {
         let tool = skill_schema::ToolMeta {
             name: tool_name.to_string(),
             destructive,
@@ -102,9 +130,8 @@ impl PySafetyChecker {
 
 #[pyfunction]
 pub fn plan_execution(skill_json: &str, tool_names: Vec<String>) -> PyResult<Vec<Vec<String>>> {
-    let spec: SkillSpec = serde_json::from_str(skill_json).map_err(|e| {
-        pyo3::exceptions::PyValueError::new_err(format!("invalid skill JSON: {e}"))
-    })?;
+    let spec: SkillSpec = serde_json::from_str(skill_json)
+        .map_err(|e| pyo3::exceptions::PyValueError::new_err(format!("invalid skill JSON: {e}")))?;
     let refs: Vec<&str> = tool_names.iter().map(|s| s.as_str()).collect();
     let plan = DagScheduler::plan(&spec, &refs);
     Ok(plan.stages)

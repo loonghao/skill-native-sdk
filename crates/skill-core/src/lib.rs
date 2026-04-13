@@ -21,12 +21,15 @@ mod integration_tests {
     fn make_spec_with_tools(read_only: &[(&str, bool)]) -> SkillSpec {
         SkillSpec {
             name: "test".to_string(),
-            tools: read_only.iter().map(|(n, ro)| ToolMeta {
-                name: n.to_string(),
-                read_only: *ro,
-                idempotent: *ro,
-                ..Default::default()
-            }).collect(),
+            tools: read_only
+                .iter()
+                .map(|(n, ro)| ToolMeta {
+                    name: n.to_string(),
+                    read_only: *ro,
+                    idempotent: *ro,
+                    ..Default::default()
+                })
+                .collect(),
             ..Default::default()
         }
     }
@@ -39,8 +42,8 @@ mod integration_tests {
 
         assert!(cache.get(&key).is_none(), "cache should start empty");
 
-        let result = ToolResult::ok("frames: [1, 24]")
-            .with_next(vec!["bake_simulation".to_string()]);
+        let result =
+            ToolResult::ok("frames: [1, 24]").with_next(vec!["bake_simulation".to_string()]);
         cache.insert(key.clone(), result);
 
         let cached = cache.get(&key).unwrap();

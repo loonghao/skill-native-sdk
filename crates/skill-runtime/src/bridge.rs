@@ -102,7 +102,9 @@ pub struct BridgeRouter {
 
 impl BridgeRouter {
     pub fn new() -> Self {
-        Self { bridges: Vec::new() }
+        Self {
+            bridges: Vec::new(),
+        }
     }
 
     pub fn register(mut self, bridge: Box<dyn Bridge>) -> Self {

@@ -143,7 +143,10 @@ impl SkillSpec {
 
     /// Tools that are safe to parallelize with any other read-only tool.
     pub fn parallelizable_tools(&self) -> Vec<&ToolMeta> {
-        self.tools.iter().filter(|t| t.read_only && t.idempotent).collect()
+        self.tools
+            .iter()
+            .filter(|t| t.read_only && t.idempotent)
+            .collect()
     }
 
     /// Entry-point tools: those NOT mentioned in any on_success/on_error of other tools.

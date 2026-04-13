@@ -1,0 +1,35 @@
+[tools]
+just = "latest"
+maturin = "latest"
+python = "3.12"
+rust = "1.90"
+uv = "latest"
+
+[settings]
+cache_duration = "7d"
+auto_install = true
+
+[scripts]
+build          = "just build"
+build-release  = "cargo build --release"
+check          = "just check"
+ci             = "just ci"
+clean          = "just clean"
+clippy         = "just clippy"
+default        = "just default"
+dev            = "just dev"
+doc            = "cargo doc"
+fmt            = "just fmt"
+fmt-check      = "just fmt-check"
+format         = "cargo fmt"
+install        = "just install"
+lint           = "just lint"
+lint-fix       = "just lint-fix"
+lint-py        = "just lint-py"
+lint-py-fix    = "just lint-py-fix"
+preflight      = "just preflight"
+test           = "just test"
+test-cov       = "just test-cov"
+test-rust      = "just test-rust"
+rust-cov       = "just rust-cov"
+typecheck      = "uv run mypy ."

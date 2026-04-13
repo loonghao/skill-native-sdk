@@ -1,0 +1,101 @@
+name: 'Build Wheel'
+description: 'Build skill-native-sdk wheel with maturin'
+
+inputs:
+  target:
+    description: 'Target platform (e.g. x86_64, universal2-apple-darwin)'
+    required: false
+    default: ''
+  python-version:
+    description: 'Python version'
+    required: false
+    default: '3.12'
+  rust-version:
+    description: 'Rust toolchain version'
+    required: false
+    default: '1.90.0'
+  maturin-args:
+    description: 'maturin build arguments'
+    required: false
+    default: '--release --out dist --find-interpreter --features python-bindings,ext-module,abi3-py310'
+  test-wheel:
+    description: 'Smoke-test the built wheel after building'
+    required: false
+    default: 'true'
+  artifact-name:
+    description: 'Artifact upload name'
+    required: false
+    default: 'wheels'
+  use-sccache:
+    description: 'Use sccache for faster Rust compilation'
+    required: false
+    default: 'true'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Python
+      uses: actions/setup-python@v6
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Setup Rust
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: ${{ inputs.rust-version }}
+
+    - name: Cache Cargo
+      uses: actions/cache@v5
+      with:
+        path: |
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          target/
+        key: ${{ runner.os }}-${{ inputs.target || 'default' }}-py${{ inputs.python-version }}-cargo-${{ hashFiles('**/Cargo.toml') }}
+        restore-keys: |
+          ${{ runner.os }}-${{ inputs.target || 'default' }}-cargo-wheel-
+
+    - name: Build wheel
+      uses: PyO3/maturin-action@v1
+      with:
+        target: ${{ inputs.target }}
+        args: ${{ inputs.maturin-args }}
+        rust-toolchain: ${{ inputs.rust-version }}
+        sccache: ${{ inputs.use-sccache == 'true' }}
+        manylinux: auto
+
+    - name: Smoke-test wheel
+      if: inputs.test-wheel == 'true'
+      shell: bash
+      run: |
+        python -m venv test-env
+        if [ "${{ runner.os }}" = "Windows" ]; then
+          source test-env/Scripts/activate
+        else
+          source test-env/bin/activate
+        fi
+
+        pip install --no-index --find-links dist skill-native-sdk --force-reinstall --no-deps
+
+        python -c "
+        import skill_native_sdk
+        print(f'Version: {skill_native_sdk.__version__}')
+        from skill_native_sdk._skill_native_core import (
+            RustSkillSpec, RustToolResult, SafetyChecker,
+            parse_skill_md, scan_and_load,
+        )
+        r = RustToolResult.ok('smoke test passed')
+        print(f'ToolResult: {r}')
+        checker = SafetyChecker()
+        decision, _ = checker.check('noop', False, 'low', False)
+        assert decision == 'allow', f'expected allow, got {decision}'
+        print('All imports and smoke tests OK!')
+        "
+
+    - name: Upload wheel artifact
+      uses: actions/upload-artifact@v7
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: dist/
+        retention-days: 30

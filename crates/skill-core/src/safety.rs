@@ -14,22 +14,13 @@ pub enum SafetyDecision {
 }
 
 /// Policy configuration for the safety checker.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct SafetyPolicy {
     /// If `true`, destructive tools always require confirmation even when the
     /// caller passes `confirmed = true`.  Useful in read-only environments.
     pub block_destructive: bool,
     /// If `true`, tools with `cost = "external"` are blocked.
     pub block_external_cost: bool,
-}
-
-impl Default for SafetyPolicy {
-    fn default() -> Self {
-        Self {
-            block_destructive: false,
-            block_external_cost: false,
-        }
-    }
 }
 
 /// Checks a [`ToolMeta`] against a [`SafetyPolicy`] before execution.
@@ -51,7 +42,8 @@ impl SafetyChecker {
         // Hard block on external cost if policy says so
         if self.policy.block_external_cost && tool.cost == "external" {
             return SafetyDecision::Blocked(format!(
-                "Tool '{}' has cost=external which is blocked by policy", tool.name
+                "Tool '{}' has cost=external which is blocked by policy",
+                tool.name
             ));
         }
 
@@ -59,7 +51,8 @@ impl SafetyChecker {
         if tool.destructive {
             if self.policy.block_destructive {
                 return SafetyDecision::Blocked(format!(
-                    "Tool '{}' is destructive and blocked by policy", tool.name
+                    "Tool '{}' is destructive and blocked by policy",
+                    tool.name
                 ));
             }
             if !confirmed {
@@ -112,14 +105,23 @@ mod tests {
     fn requires_confirmation_for_destructive() {
         let checker = SafetyChecker::default();
         let tool = make_tool(true, "low");
-        assert!(matches!(checker.check(&tool, false), SafetyDecision::RequiresConfirmation(_)));
+        assert!(matches!(
+            checker.check(&tool, false),
+            SafetyDecision::RequiresConfirmation(_)
+        ));
         assert_eq!(checker.check(&tool, true), SafetyDecision::Allow);
     }
 
     #[test]
     fn block_external_cost_by_policy() {
-        let checker = SafetyChecker::new(SafetyPolicy { block_external_cost: true, ..Default::default() });
+        let checker = SafetyChecker::new(SafetyPolicy {
+            block_external_cost: true,
+            ..Default::default()
+        });
         let tool = make_tool(false, "external");
-        assert!(matches!(checker.check(&tool, false), SafetyDecision::Blocked(_)));
+        assert!(matches!(
+            checker.check(&tool, false),
+            SafetyDecision::Blocked(_)
+        ));
     }
 }

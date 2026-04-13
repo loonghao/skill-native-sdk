@@ -15,7 +15,10 @@ fn extract_frontmatter(text: &str) -> Option<&str> {
     }
     let rest = &text[3..];
     // Skip optional newline right after opening ---
-    let rest = rest.strip_prefix('\n').or_else(|| rest.strip_prefix("\r\n")).unwrap_or(rest);
+    let rest = rest
+        .strip_prefix('\n')
+        .or_else(|| rest.strip_prefix("\r\n"))
+        .unwrap_or(rest);
     // Find closing ---
     let end = rest.find("\n---").or_else(|| rest.find("\r\n---"))?;
     Some(&rest[..end])
@@ -25,7 +28,9 @@ fn extract_frontmatter(text: &str) -> Option<&str> {
 fn extract_fenced_yaml(text: &str) -> Option<&str> {
     let start_tag = "```yaml\n";
     let alt_tag = "```yml\n";
-    let start = text.find(start_tag).map(|i| (i, start_tag.len()))
+    let start = text
+        .find(start_tag)
+        .map(|i| (i, start_tag.len()))
         .or_else(|| text.find(alt_tag).map(|i| (i, alt_tag.len())));
     let (pos, tag_len) = start?;
     let yaml_start = pos + tag_len;
@@ -60,8 +65,8 @@ pub fn parse_skill_md(path: &Path) -> Result<SkillSpec, ParseError> {
         .to_string_lossy()
         .to_string();
 
-    let text = std::fs::read_to_string(&file_path)
-        .map_err(|e| ParseError::Io(file_path.clone(), e))?;
+    let text =
+        std::fs::read_to_string(&file_path).map_err(|e| ParseError::Io(file_path.clone(), e))?;
 
     parse_skill_md_str(&text, source_dir)
 }
@@ -78,8 +83,8 @@ pub fn parse_skill_md_str(text: &str, source_dir: String) -> Result<SkillSpec, P
         text
     };
 
-    let mut spec: SkillSpec = serde_yaml::from_str(yaml)
-        .map_err(|e| ParseError::Yaml(e.to_string()))?;
+    let mut spec: SkillSpec =
+        serde_yaml::from_str(yaml).map_err(|e| ParseError::Yaml(e.to_string()))?;
 
     spec.source_dir = source_dir;
     Ok(spec)

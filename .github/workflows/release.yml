@@ -1,0 +1,87 @@
+name: Release
+
+# Triggered on every push to main.
+# release-please opens/updates a "Release PR"; when that PR is merged,
+# it creates a GitHub Release and this workflow builds + publishes to PyPI.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  pull-requests: write
+  id-token: write
+  attestations: write
+  actions: read
+
+jobs:
+  # ── Release Please ─────────────────────────────────────────────────────────
+  release-please:
+    name: Release Please
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name:        ${{ steps.release.outputs.tag_name }}
+      version:         ${{ steps.release.outputs.version }}
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  # ── Build wheels (only when release-please created a release) ─────────────
+  build-wheels:
+    name: Build wheels
+    needs: [release-please]
+    if: needs.release-please.outputs.release_created == 'true'
+    uses: ./.github/workflows/build-wheels.yml
+    with:
+      test-wheel: 'true'
+
+  # ── Publish to PyPI via Trusted Publishers (no credentials needed) ─────────
+  publish:
+    name: Publish to PyPI
+    needs: [release-please, build-wheels]
+    if: |
+      needs.release-please.outputs.release_created == 'true' &&
+      needs.build-wheels.result == 'success'
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/skill-native-sdk
+    permissions:
+      id-token: write
+      contents: write
+    steps:
+      - name: Download all wheel artifacts
+        uses: actions/download-artifact@v8
+        with:
+          pattern: wheels-*
+          path: dist
+          merge-multiple: true
+
+      - name: List wheels to publish
+        run: ls -la dist/
+
+      # PyPI Trusted Publishers — no API token required
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist
+          verbose: true
+          print-hash: true
+
+      - name: Attach wheels to GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ needs.release-please.outputs.tag_name }}
+          files: dist/*
