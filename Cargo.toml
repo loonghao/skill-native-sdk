@@ -6,6 +6,7 @@ members = [
     "crates/skill-schema",
     "crates/skill-core",
     "crates/skill-runtime",
+    "crates/skill-cli",
 ]
 resolver = "2"
 
@@ -19,9 +20,10 @@ repository = "https://github.com/loonghao/skill-native-sdk"
 
 [workspace.dependencies]
 # Internal crates
-skill-schema = { path = "crates/skill-schema" }
-skill-core   = { path = "crates/skill-core" }
+skill-schema  = { path = "crates/skill-schema" }
+skill-core    = { path = "crates/skill-core" }
 skill-runtime = { path = "crates/skill-runtime" }
+skill-cli     = { path = "crates/skill-cli" }
 
 # Shared external dependencies (single version across workspace)
 pyo3         = { version = "0.28", features = ["multiple-pymethods"] }
@@ -31,6 +33,7 @@ serde_yaml   = "0.9"
 thiserror    = "2.0"
 dashmap      = "6.1"
 anyhow       = "1.0"
+clap         = { version = "4", features = ["derive"] }
 indexmap     = { version = "2.0", features = ["serde"] }
 
 # Root package — Python bindings entry point
@@ -54,6 +57,7 @@ crate-type = ["cdylib", "rlib"]
 skill-schema  = { workspace = true }
 skill-core    = { workspace = true }
 skill-runtime = { workspace = true }
+skill-cli     = { workspace = true }
 pyo3 = { workspace = true, optional = true }
 
 [dev-dependencies]
@@ -72,6 +76,7 @@ python-bindings = [
     "skill-schema/python-bindings",
     "skill-core/python-bindings",
     "skill-runtime/python-bindings",
+    "skill-cli/python-bindings",
 ]
 # abi3-py38: one wheel for Python 3.8, 3.9, 3.10, 3.11, 3.12, 3.13+
 # Python 3.7 gets a separate cp37 wheel built WITHOUT this feature.

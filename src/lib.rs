@@ -5,6 +5,7 @@
 //! re-exports and registers.
 
 // Re-export sub-crates for Rust consumers
+pub use skill_cli as cli;
 pub use skill_core as core;
 pub use skill_runtime as runtime;
 pub use skill_schema as schema;
@@ -32,6 +33,9 @@ fn _skill_native_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     // ── skill-runtime: bridge constants ───────────────────────────────────
     skill_runtime::python::register(m)?;
+
+    // ── skill-cli: run_cli() ──────────────────────────────────────────────
+    skill_cli::python::register(m)?;
 
     // ── Metadata ──────────────────────────────────────────────────────────
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;

@@ -1,14 +1,50 @@
-"""skill CLI — zero third-party dependencies (stdlib argparse only)."""
+"""skill CLI — thin Python shim that delegates to the Rust implementation.
+
+When the Rust extension (``_skill_native_core``) is present (normal install),
+``run_cli`` is just::
+
+    import sys
+    from skill_native_sdk._skill_native_core import run_cli
+    sys.exit(run_cli(sys.argv))
+
+A stdlib-only fallback is kept for the rare case where the wheel has not been
+built yet (e.g. running directly from a source checkout without ``maturin
+develop``).
+"""
 from __future__ import annotations
 
-import argparse
-import json
 import sys
-from pathlib import Path
-from typing import List, Optional
 
-from ..executor import SkillExecutor
-from ..registry import SkillRegistry
+# ---------------------------------------------------------------------------
+# Attempt to use the fast Rust implementation first
+# ---------------------------------------------------------------------------
+try:
+    from .._skill_native_core import run_cli as _rust_run_cli  # type: ignore[import]
+    _RUST_CLI = True
+except ImportError:
+    _RUST_CLI = False
+
+
+def main() -> None:  # noqa: C901
+    """Entry point registered in pyproject.toml ``[project.scripts]``."""
+    if _RUST_CLI:
+        sys.exit(_rust_run_cli(sys.argv))
+    else:
+        _stdlib_main()
+
+
+# ---------------------------------------------------------------------------
+# Stdlib fallback (no Rust extension available)
+# ---------------------------------------------------------------------------
+import argparse  # noqa: E402 (after the fast path)
+import json  # noqa: E402
+from pathlib import Path  # noqa: E402
+from typing import List, Optional  # noqa: E402
+
+from ..executor import SkillExecutor  # noqa: E402
+from ..registry import SkillRegistry  # noqa: E402
+
+DEFAULT_SKILLS_DIR = "./skills"
 
 # ── ANSI helpers (stdlib only) ────────────────────────────────────────────────
 _USE_COLOR = sys.stdout.isatty()
@@ -24,9 +60,6 @@ def yellow(t: str) -> str:  return _c(t, "33")
 def red(t: str) -> str:     return _c(t, "31")
 def dim(t: str) -> str:     return _c(t, "2")
 def bold(t: str) -> str:    return _c(t, "1")
-
-
-DEFAULT_SKILLS_DIR = "./skills"
 
 
 def _load_registry(skills_dir: str) -> SkillRegistry:
@@ -194,7 +227,7 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def app() -> None:
+def _stdlib_main() -> None:
     parser = _build_parser()
     args = parser.parse_args()
     if not args.command:
@@ -212,4 +245,4 @@ def app() -> None:
 
 
 if __name__ == "__main__":
-    app()
+    main()

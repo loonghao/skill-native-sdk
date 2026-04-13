@@ -105,6 +105,7 @@ impl Bridge for SubprocessBridge {
     }
 
     fn supports(&self, runtime_type: &str) -> bool {
-        runtime_type == "subprocess"
+        // Accept both "subprocess" (explicit) and "python" (common shorthand)
+        matches!(runtime_type, "subprocess" | "python")
     }
 }
