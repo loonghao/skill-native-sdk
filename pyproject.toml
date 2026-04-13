@@ -1,0 +1,71 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "skill-native-sdk"
+version = "0.1.0"
+description = "SKILL.md → anywhere. Write once in SKILL.md, deploy as MCP / OpenAI / LangChain / REST."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+authors = [
+    { name = "Hal", email = "13111745+loonghao@users.noreply.github.com" },
+]
+keywords = ["mcp", "ai", "tools", "skill", "llm", "agent"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+
+dependencies = [
+    "pyyaml>=6.0",
+    "pydantic>=2.0",
+    "typer>=0.12",
+    "rich>=13.0",
+]
+
+[project.optional-dependencies]
+mcp = ["mcp>=1.0"]
+openai = ["openai>=1.0"]
+langchain = ["langchain-core>=0.2"]
+rest = ["fastapi>=0.110", "uvicorn>=0.29"]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "pytest-cov>=5.0",
+    "ruff>=0.4",
+    "mypy>=1.10",
+]
+
+[project.scripts]
+skill = "skill_native_sdk.cli.main:app"
+
+[project.urls]
+Homepage = "https://github.com/loonghao/skill-native-sdk"
+Repository = "https://github.com/loonghao/skill-native-sdk"
+Issues = "https://github.com/loonghao/skill-native-sdk/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["python/skill_native_sdk"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
