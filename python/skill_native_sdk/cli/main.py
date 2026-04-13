@@ -1,188 +1,140 @@
-"""skill CLI — discover, inspect, and execute skills from the command line."""
+"""skill CLI — zero third-party dependencies (stdlib argparse only)."""
 from __future__ import annotations
 
+import argparse
 import json
+import sys
 from pathlib import Path
-from typing import Optional
-
-import typer
-from rich import print as rprint
-from rich.console import Console
-from rich.table import Table
+from typing import List, Optional
 
 from ..executor import SkillExecutor
 from ..registry import SkillRegistry
 
-app = typer.Typer(
-    name="skill",
-    help="skill-native-sdk CLI — SKILL.md → anywhere",
-    rich_markup_mode="rich",
-)
-console = Console()
+# ── ANSI helpers (stdlib only) ────────────────────────────────────────────────
+_USE_COLOR = sys.stdout.isatty()
 
-# Default skills directory (can be overridden via --skills-dir option)
+
+def _c(text: str, code: str) -> str:
+    return f"\033[{code}m{text}\033[0m" if _USE_COLOR else text
+
+
+def cyan(t: str) -> str:    return _c(t, "36")
+def green(t: str) -> str:   return _c(t, "32")
+def yellow(t: str) -> str:  return _c(t, "33")
+def red(t: str) -> str:     return _c(t, "31")
+def dim(t: str) -> str:     return _c(t, "2")
+def bold(t: str) -> str:    return _c(t, "1")
+
+
 DEFAULT_SKILLS_DIR = "./skills"
 
 
 def _load_registry(skills_dir: str) -> SkillRegistry:
     p = Path(skills_dir)
     if not p.exists():
-        rprint(f"[red]Skills directory not found: {skills_dir}[/red]")
-        raise typer.Exit(1)
+        print(red(f"Skills directory not found: {skills_dir}"), file=sys.stderr)
+        sys.exit(1)
     return SkillRegistry.from_path(p)
 
 
-# ---------------------------------------------------------------------------
-# skill list
-# ---------------------------------------------------------------------------
+# ── skill list ────────────────────────────────────────────────────────────────
 
-@app.command("list")
-def cmd_list(
-    skills_dir: str = typer.Option(DEFAULT_SKILLS_DIR, "--skills-dir", "-d", help="Skills root directory"),
-    domain: Optional[str] = typer.Option(None, "--domain", help="Filter by domain"),
-) -> None:
-    """List all available skills."""
-    registry = _load_registry(skills_dir)
-    specs = registry.list(domain=domain)
-
+def cmd_list(args: argparse.Namespace) -> None:
+    registry = _load_registry(args.skills_dir)
+    specs = registry.list(domain=args.domain)
     if not specs:
-        rprint("[yellow]No skills found.[/yellow]")
-        raise typer.Exit(0)
-
-    table = Table(title="Available Skills", show_lines=True)
-    table.add_column("Name", style="cyan bold")
-    table.add_column("Domain", style="magenta")
-    table.add_column("Version")
-    table.add_column("Tools", justify="right")
-    table.add_column("Description")
-
+        print(yellow("No skills found."))
+        return
+    print(bold(f"\n{'Name':<25} {'Domain':<12} {'Ver':<8} {'Tools':>5}  Description"))
+    print("─" * 72)
     for spec in specs:
-        table.add_row(spec.name, spec.domain, spec.version, str(len(spec.tools)), spec.description[:60])
+        print(
+            f"{cyan(spec.name):<35} {spec.domain:<12} {spec.version:<8} "
+            f"{len(spec.tools):>5}  {spec.description[:40]}"
+        )
+    print()
 
-    console.print(table)
 
+# ── skill describe ────────────────────────────────────────────────────────────
 
-# ---------------------------------------------------------------------------
-# skill describe
-# ---------------------------------------------------------------------------
-
-@app.command("describe")
-def cmd_describe(
-    skill_name: str = typer.Argument(..., help="Skill name"),
-    skills_dir: str = typer.Option(DEFAULT_SKILLS_DIR, "--skills-dir", "-d"),
-) -> None:
-    """Show detailed information about a skill and its tools."""
-    registry = _load_registry(skills_dir)
-    spec = registry.get(skill_name)
+def cmd_describe(args: argparse.Namespace) -> None:
+    registry = _load_registry(args.skills_dir)
+    spec = registry.get(args.skill_name)
     if spec is None:
-        rprint(f"[red]Skill not found: {skill_name}[/red]")
-        raise typer.Exit(1)
+        print(red(f"Skill not found: {args.skill_name}"), file=sys.stderr)
+        sys.exit(1)
 
-    rprint(f"\n[bold cyan]{spec.name}[/bold cyan] v{spec.version} ([magenta]{spec.domain}[/magenta])")
-    rprint(f"  {spec.description}\n")
-    rprint(f"  [dim]Tags:[/dim] {', '.join(spec.tags) or 'none'}")
-    rprint(f"  [dim]Runtime:[/dim] {spec.runtime.type} / entry={spec.runtime.entry}")
-    rprint(f"  [dim]Permissions:[/dim] network={spec.permissions.network}, "
-           f"filesystem={spec.permissions.filesystem}\n")
+    print(f"\n{bold(cyan(spec.name))} v{spec.version} ({spec.domain})")
+    print(f"  {spec.description}")
+    print(f"  {dim('Tags:')} {', '.join(spec.tags) or 'none'}")
+    print(f"  {dim('Runtime:')} {spec.runtime.type} / entry={spec.runtime.entry}")
+    print(f"  {dim('Permissions:')} network={spec.permissions.network}  "
+          f"filesystem={spec.permissions.filesystem}\n")
 
     for tool in spec.tools:
-        safety = []
-        if tool.read_only:
-            safety.append("[green]read-only[/green]")
-        if tool.destructive:
-            safety.append("[red]destructive[/red]")
-        if tool.idempotent:
-            safety.append("[blue]idempotent[/blue]")
-        rprint(f"  [bold]● {tool.name}[/bold]  {' '.join(safety)}")
-        rprint(f"    {tool.description}")
+        flags: List[str] = []
+        if tool.read_only:    flags.append(green("read-only"))
+        if tool.destructive:  flags.append(red("destructive"))
+        if tool.idempotent:   flags.append(cyan("idempotent"))
+        print(f"  {bold('●')} {bold(tool.name)}  {' '.join(flags)}")
+        print(f"    {tool.description}")
         if tool.on_success.suggest:
-            rprint(f"    [dim]on_success →[/dim] {tool.on_success.suggest}")
-        rprint()
+            print(f"    {dim('on_success →')} {tool.on_success.suggest}")
+        print()
 
 
-# ---------------------------------------------------------------------------
-# skill graph
-# ---------------------------------------------------------------------------
+# ── skill graph ───────────────────────────────────────────────────────────────
 
-@app.command("graph")
-def cmd_graph(
-    skill_name: str = typer.Argument(..., help="Skill name"),
-    skills_dir: str = typer.Option(DEFAULT_SKILLS_DIR, "--skills-dir", "-d"),
-) -> None:
-    """Output the CapabilityGraph for a skill (JSON)."""
-    registry = _load_registry(skills_dir)
-    graph = registry.capability_graph(skill_name)
+def cmd_graph(args: argparse.Namespace) -> None:
+    registry = _load_registry(args.skills_dir)
+    graph = registry.capability_graph(args.skill_name)
     if not graph:
-        rprint(f"[red]Skill not found: {skill_name}[/red]")
-        raise typer.Exit(1)
-    rprint(json.dumps(graph, indent=2))
+        print(red(f"Skill not found: {args.skill_name}"), file=sys.stderr)
+        sys.exit(1)
+    print(json.dumps(graph, indent=2))
 
 
-# ---------------------------------------------------------------------------
-# skill run
-# ---------------------------------------------------------------------------
+# ── skill run ─────────────────────────────────────────────────────────────────
 
-@app.command("run")
-def cmd_run(
-    skill_name: str = typer.Argument(..., help="Skill name"),
-    tool_name: str = typer.Argument(..., help="Tool name"),
-    params: Optional[str] = typer.Option(None, "--params", "-p", help="JSON params string"),
-    output: str = typer.Option("json", "--output", "-o", help="Output format: json|toon|mcp"),
-    skills_dir: str = typer.Option(DEFAULT_SKILLS_DIR, "--skills-dir", "-d"),
-) -> None:
-    """Execute a skill tool."""
-    registry = _load_registry(skills_dir)
+def cmd_run(args: argparse.Namespace) -> None:
+    registry = _load_registry(args.skills_dir)
     executor = SkillExecutor(registry)
+    params = json.loads(args.params) if args.params else {}
+    result = executor.execute(args.skill_name, args.tool_name, params)
 
-    parsed_params: dict = json.loads(params) if params else {}
-    result = executor.execute(skill_name, tool_name, parsed_params)
-
-    if output == "toon":
-        rprint(json.dumps(result.to_toon()))
-    elif output == "mcp":
-        rprint(json.dumps(result.to_mcp()))
+    if args.output == "toon":
+        print(json.dumps(result.to_toon()))
+    elif args.output == "mcp":
+        print(json.dumps(result.to_mcp()))
     else:
-        rprint(json.dumps(result.to_dict(), indent=2))
+        print(json.dumps(result.to_dict(), indent=2))
 
     if not result.success:
-        raise typer.Exit(1)
+        sys.exit(1)
 
 
-# ---------------------------------------------------------------------------
-# skill chain
-# ---------------------------------------------------------------------------
+# ── skill chain ───────────────────────────────────────────────────────────────
 
-@app.command("chain")
-def cmd_chain(
-    skill_name: str = typer.Argument(..., help="Skill name"),
-    entry: str = typer.Option(..., "--entry", help="Entry tool name"),
-    params: Optional[str] = typer.Option(None, "--params", "-p", help="JSON params for entry tool"),
-    follow_success: bool = typer.Option(False, "--follow-success", help="Auto-follow on_success hints"),
-    output: str = typer.Option("toon", "--output", "-o"),
-    skills_dir: str = typer.Option(DEFAULT_SKILLS_DIR, "--skills-dir", "-d"),
-) -> None:
-    """Execute a skill tool and optionally follow the on_success chain."""
-    registry = _load_registry(skills_dir)
+def cmd_chain(args: argparse.Namespace) -> None:
+    registry = _load_registry(args.skills_dir)
     executor = SkillExecutor(registry)
-
-    parsed_params: dict = json.loads(params) if params else {}
-    current_tool = entry
+    params = json.loads(args.params) if args.params else {}
+    current_tool: Optional[str] = args.entry
     step = 1
 
     while current_tool:
-        rprint(f"\n[dim]Step {step}:[/dim] [bold]{skill_name} / {current_tool}[/bold]")
-        result = executor.execute(skill_name, current_tool, parsed_params if step == 1 else {})
+        print(f"\n{dim(f'Step {step}:')} {bold(args.skill_name)} / {bold(current_tool)}")
+        result = executor.execute(args.skill_name, current_tool, params if step == 1 else {})
 
-        if output == "toon":
-            rprint(result.to_toon())
+        if args.output == "toon":
+            print(json.dumps(result.to_toon()))
         else:
-            rprint(json.dumps(result.to_dict(), indent=2))
+            print(json.dumps(result.to_dict(), indent=2))
 
-        if not result.success or not follow_success:
+        if not result.success or not args.follow_success:
             break
 
-        # Follow on_success → take the first suggested next tool
-        spec = registry.get(skill_name)
+        spec = registry.get(args.skill_name)
         if spec:
             tool_meta = spec.get_tool(current_tool)
             if tool_meta and tool_meta.on_success.suggest:
@@ -190,6 +142,73 @@ def cmd_chain(
                 step += 1
                 continue
         break
+
+
+# ── Argument parser ───────────────────────────────────────────────────────────
+
+def _build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="skill",
+        description="skill-native-sdk CLI — SKILL.md → anywhere",
+    )
+    sub = parser.add_subparsers(dest="command", metavar="COMMAND")
+
+    def _add_dir(p: argparse.ArgumentParser) -> None:
+        p.add_argument("--skills-dir", "-d", default=DEFAULT_SKILLS_DIR,
+                       metavar="DIR", help="Skills root directory")
+
+    # list
+    p_list = sub.add_parser("list", help="List available skills")
+    _add_dir(p_list)
+    p_list.add_argument("--domain", default=None, help="Filter by domain")
+
+    # describe
+    p_desc = sub.add_parser("describe", help="Show skill details")
+    _add_dir(p_desc)
+    p_desc.add_argument("skill_name", metavar="SKILL")
+
+    # graph
+    p_graph = sub.add_parser("graph", help="Show capability graph (JSON)")
+    _add_dir(p_graph)
+    p_graph.add_argument("skill_name", metavar="SKILL")
+
+    # run
+    p_run = sub.add_parser("run", help="Execute a skill tool")
+    _add_dir(p_run)
+    p_run.add_argument("skill_name", metavar="SKILL")
+    p_run.add_argument("tool_name", metavar="TOOL")
+    p_run.add_argument("--params", "-p", default=None, metavar="JSON")
+    p_run.add_argument("--output", "-o", default="json",
+                       choices=["json", "toon", "mcp"])
+
+    # chain
+    p_chain = sub.add_parser("chain", help="Execute and follow on_success chain")
+    _add_dir(p_chain)
+    p_chain.add_argument("skill_name", metavar="SKILL")
+    p_chain.add_argument("--entry", required=True, metavar="TOOL")
+    p_chain.add_argument("--params", "-p", default=None, metavar="JSON")
+    p_chain.add_argument("--follow-success", action="store_true")
+    p_chain.add_argument("--output", "-o", default="toon",
+                         choices=["json", "toon", "mcp"])
+
+    return parser
+
+
+def app() -> None:
+    parser = _build_parser()
+    args = parser.parse_args()
+    if not args.command:
+        parser.print_help()
+        sys.exit(0)
+
+    dispatch = {
+        "list":     cmd_list,
+        "describe": cmd_describe,
+        "graph":    cmd_graph,
+        "run":      cmd_run,
+        "chain":    cmd_chain,
+    }
+    dispatch[args.command](args)
 
 
 if __name__ == "__main__":

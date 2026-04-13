@@ -1,20 +1,13 @@
-"""Tests for the SKILL.md v2 parser."""
+"""Tests for the SKILL.md v2 parser (stdlib dataclasses — no third-party deps)."""
 from __future__ import annotations
 
-import sys
 import textwrap
 from pathlib import Path
 
 import pytest
 
-# All tests in this module require Pydantic (Python 3.8+)
-pytestmark = pytest.mark.skipif(
-    sys.version_info < (3, 8),
-    reason="Pydantic-based parser requires Python 3.8+",
-)
-
-from skill_native_sdk import parse_skill_md, scan_and_load  # noqa: E402
-from skill_native_sdk.models import SkillSpec  # noqa: E402
+from skill_native_sdk import parse_skill_md, scan_and_load
+from skill_native_sdk.models import SkillSpec
 
 
 SKILL_MD_CONTENT = textwrap.dedent("""\

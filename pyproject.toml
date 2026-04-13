@@ -28,30 +28,24 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 
-dependencies = [
-    # Core YAML parser (pure-Python fallback)
-    "pyyaml>=5.1",
-    # Pydantic models — Python 3.8+ only (pydantic v2 requires 3.8+)
-    "pydantic>=2.0; python_version >= '3.8'",
-    # Typing backports for Python 3.7
-    "typing-extensions>=3.7.4; python_version < '3.8'",
-    # CLI — typer+rich work on 3.7+
-    "typer>=0.9",
-    "rich>=12.0",
-]
+# Zero third-party Python dependencies.
+# All YAML parsing is handled by the compiled Rust extension (skill-schema crate).
+# Models use stdlib dataclasses. CLI uses stdlib argparse.
+dependencies = []
 
 [project.optional-dependencies]
-mcp = ["mcp>=1.0"]
-openai = ["openai>=1.0"]
+# AI framework adapters (all optional, install only what you need)
+mcp      = ["mcp>=1.0"]
+openai   = ["openai>=1.0"]
 langchain = ["langchain-core>=0.2"]
-rest = ["fastapi>=0.110", "uvicorn>=0.29"]
+rest     = ["fastapi>=0.110", "uvicorn>=0.29"]
+# Development tools
 dev = [
     "pytest>=7.0",
-    "pytest-asyncio>=0.21",
     "pytest-cov>=4.0",
     "ruff>=0.4",
     "mypy>=1.0",
-    "pydantic>=2.0",
+    "maturin>=1.7",
 ]
 
 [project.scripts]
