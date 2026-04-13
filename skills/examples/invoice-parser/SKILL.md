@@ -54,6 +54,30 @@ tools:
     on_error:
       suggest: [manual_review_flag]
 
+  - name: post_to_accounting
+    description: "Post validated invoice to the accounting system"
+    source_file: scripts/post_to_accounting.py
+    read_only: false
+    destructive: false
+    idempotent: false
+    cost: low
+    latency: fast
+    input:
+      vendor:
+        type: string
+        required: true
+      total:
+        type: number
+        required: true
+      invoice_number:
+        type: string
+        required: false
+        default: ""
+    output:
+      entry_id: string
+    on_success:
+      suggest: []
+
   - name: manual_review_flag
     description: "Flag invoice for manual review"
     source_file: scripts/manual_review_flag.py
@@ -76,7 +100,8 @@ tools:
       suggest: []
 
 runtime:
-  type: python
+  type: subprocess
+  interpreter: python
   entry: skill_entry
 
 permissions:

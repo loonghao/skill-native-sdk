@@ -148,21 +148,42 @@ def cmd_run(args: argparse.Namespace) -> None:
 
 # ── skill chain ───────────────────────────────────────────────────────────────
 
+def _merge_chain_params(entry: dict, accumulated: dict) -> dict:
+    """Merge *entry* params with *accumulated* data from all previous steps.
+
+    Strategy: start from accumulated (later steps override earlier ones),
+    then overlay entry params on top (entry always wins).
+    The full accumulated context is also available under ``"data"`` for
+    ``**kwargs``-style scripts via ``kwargs.get("data")``.
+    """
+    merged = dict(accumulated)
+    merged.update(entry)  # entry params always win
+    merged.setdefault("data", dict(accumulated))
+    return merged
+
+
 def cmd_chain(args: argparse.Namespace) -> None:
     registry = _load_registry(args.skills_dir)
     executor = SkillExecutor(registry)
-    params = json.loads(args.params) if args.params else {}
+    entry_params = json.loads(args.params) if args.params else {}
     current_tool: Optional[str] = args.entry
     step = 1
+    accumulated: dict = {}  # accumulates data fields from every completed step
 
     while current_tool:
         print(f"\n{dim(f'Step {step}:')} {bold(args.skill_name)} / {bold(current_tool)}")
-        result = executor.execute(args.skill_name, current_tool, params if step == 1 else {})
+
+        params = entry_params if step == 1 else _merge_chain_params(entry_params, accumulated)
+        result = executor.execute(args.skill_name, current_tool, params)
 
         if args.output == "toon":
             print(json.dumps(result.to_toon()))
         else:
             print(json.dumps(result.to_dict(), indent=2))
+
+        # Accumulate this step's data (later steps override earlier ones).
+        if isinstance(result.data, dict):
+            accumulated.update(result.data)
 
         if not result.success or not args.follow_success:
             break

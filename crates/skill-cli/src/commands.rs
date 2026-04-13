@@ -77,6 +77,31 @@ fn make_router() -> BridgeRouter {
     BridgeRouter::new().register(Box::new(SubprocessBridge::default()))
 }
 
+/// Merge entry params with the accumulated data from all previous steps.
+///
+/// Strategy (entry params always win, later steps override earlier ones):
+/// 1. Start from `accumulated` (merged data from all previous steps so far).
+/// 2. Then overlay `entry` on top — entry params always win.
+/// 3. Also expose `accumulated` under the `"data"` key for `**kwargs` scripts.
+fn merge_chain_params(
+    entry: &serde_json::Value,
+    accumulated: &serde_json::Map<String, serde_json::Value>,
+) -> serde_json::Value {
+    let mut merged = serde_json::Value::Object(accumulated.clone());
+    if let Some(obj) = merged.as_object_mut() {
+        // entry params overwrite accumulated keys (they always win)
+        if let Some(entry_obj) = entry.as_object() {
+            for (k, v) in entry_obj {
+                obj.insert(k.clone(), v.clone());
+            }
+        }
+        // Expose the full accumulated context under "data" for **kwargs scripts.
+        obj.entry("data".to_string())
+            .or_insert(serde_json::Value::Object(accumulated.clone()));
+    }
+    merged
+}
+
 // ── list ──────────────────────────────────────────────────────────────────────
 // Uses lightweight SkillMetadata — no full YAML parse required.
 
@@ -228,12 +253,22 @@ pub fn cmd_chain(
     let router = make_router();
     let mut current_tool = entry.to_string();
     let mut step = 1usize;
+    // Accumulates data fields from every completed step so the full context
+    // is available to all subsequent steps (output → input pipeline).
+    let mut accumulated: serde_json::Map<String, serde_json::Value> = serde_json::Map::new();
 
     loop {
         println!("\n{} {} / {}", dim(&format!("Step {step}:")),
             bold(skill_name), bold(&current_tool));
 
-        let params = if step == 1 { entry_params.clone() } else { serde_json::json!({}) };
+        // Step 1 uses entry params as-is.
+        // Later steps get entry params merged with ALL previous steps' output.
+        let params = if step == 1 {
+            entry_params.clone()
+        } else {
+            merge_chain_params(&entry_params, &accumulated)
+        };
+
         let req = ExecutionRequest {
             skill_name: skill_name.to_string(),
             tool_name: current_tool.clone(),
@@ -247,6 +282,13 @@ pub fn cmd_chain(
         };
 
         print_result(&result, fmt);
+
+        // Accumulate this step's data fields (later steps override earlier ones).
+        if let Some(serde_json::Value::Object(data_obj)) = &result.data {
+            for (k, v) in data_obj {
+                accumulated.insert(k.clone(), v.clone());
+            }
+        }
 
         if !result.success || !follow_success { break; }
 

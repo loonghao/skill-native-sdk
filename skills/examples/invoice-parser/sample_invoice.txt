@@ -1,0 +1,12 @@
+INVOICE
+Vendor: ACME Corp
+Invoice #: INV-2026-001
+Date: 2026-04-13
+
+Line Items:
+  Consulting services   10 x $100.00 = $1000.00
+  Travel expenses        1 x $125.00 =  $125.00
+  Materials              5 x  $25.00 =  $125.00
+
+Subtotal: $1250.00
+Tax (10%):  $125.00 (for simulation purposes this file is parsed by parse_invoice.py)

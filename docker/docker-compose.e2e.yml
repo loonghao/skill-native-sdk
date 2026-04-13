@@ -1,0 +1,83 @@
+# docker/docker-compose.e2e.yml
+# ─────────────────────────────────────────────────────────────────────────────
+# End-to-end DCC test suite using REAL DCC containers.
+#
+#   mayapy-e2e  →  tahv/mayapy:2025  (real Maya Python interpreter)
+#   blender-e2e →  ubuntu:22.04 + blender package  (real headless Blender)
+#
+# Usage:
+#   docker compose -f docker/docker-compose.e2e.yml up --build --abort-on-container-exit
+#
+# Individual services:
+#   docker compose -f docker/docker-compose.e2e.yml run mayapy-e2e
+#   docker compose -f docker/docker-compose.e2e.yml run blender-e2e
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  # ── Real mayapy e2e (tahv/mayapy:2025) ──────────────────────────────────
+  mayapy-e2e:
+    build:
+      context: ..
+      dockerfile: docker/mayapy/Dockerfile
+    image: skill-native-sdk-mayapy
+    volumes:
+      - ../skills:/skills:ro
+    command:
+      - /bin/sh
+      - -c
+      - |
+        set -e
+        echo "=== mayapy e2e: set_keyframe ==="
+        mayapy /skills/examples/maya-animation/scripts/set_keyframe.py \
+          '{"object":"pCube1","time":24}' | mayapy -c \
+          "import sys,json; d=json.load(sys.stdin); \
+           assert d['success'], d; assert '[sim]' not in d['message'], d; \
+           print('PASS set_keyframe:', d['message'])"
+
+        echo "=== mayapy e2e: get_keyframes ==="
+        mayapy /skills/examples/maya-animation/scripts/get_keyframes.py \
+          '{"object":"pCube1"}' | mayapy -c \
+          "import sys,json; d=json.load(sys.stdin); \
+           assert d['success'], d; assert 'data' in d, d; \
+           print('PASS get_keyframes:', d['message'])"
+
+        echo "=== mayapy e2e: bake_simulation ==="
+        mayapy /skills/examples/maya-animation/scripts/bake_simulation.py \
+          '{"object":"pCube1","start_frame":1,"end_frame":24}' | mayapy -c \
+          "import sys,json; d=json.load(sys.stdin); \
+           assert d['success'], d; assert '[sim]' not in d['message'], d; \
+           print('PASS bake_simulation:', d['message'])"
+
+        echo "ALL mayapy e2e tests passed."
+
+  # ── Real Blender headless e2e (ubuntu:22.04 + blender) ──────────────────
+  blender-e2e:
+    build:
+      context: ..
+      dockerfile: docker/blender/Dockerfile
+    image: skill-native-sdk-blender
+    volumes:
+      - ../skills:/skills:ro
+    command:
+      - /bin/sh
+      - -c
+      - |
+        set -e
+        echo "=== blender e2e: set_render_output ==="
+        blender /skills/examples/blender-render/scripts/set_render_output.py \
+          '{"output_path":"/tmp/render/frame_","file_format":"PNG"}' | python3 -c \
+          "import sys,json; d=json.load(sys.stdin); \
+           assert d['success'], d; assert '[sim]' not in d['message'], d; \
+           print('PASS set_render_output:', d['message'])"
+
+        echo "=== blender e2e: render_scene ==="
+        # write_still=false: validate the render API without writing output files.
+        # The script uses CYCLES (CPU) so no display/GPU is required.
+        blender /skills/examples/blender-render/scripts/render_scene.py \
+          '{"write_still":false}' | python3 -c \
+          "import sys,json; d=json.load(sys.stdin); \
+           assert d['success'], d; assert '[sim]' not in d['message'], d; \
+           print('PASS render_scene:', d['message'])"
+
+        echo "ALL blender e2e tests passed."

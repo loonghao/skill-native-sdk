@@ -16,6 +16,8 @@ def skill_entry(object: str, time: float, attribute: str = "translateX") -> dict
     Returns a dict that skill-native-sdk will wrap into a ToolResult.
     """
     try:
+        import maya.standalone  # type: ignore[import]
+        maya.standalone.initialize()
         import maya.cmds as cmds  # type: ignore[import]
         cmds.setKeyframe(object, attribute=attribute, time=time)
         message = f"Set keyframe on {object}.{attribute} at frame {time}"
@@ -31,6 +33,9 @@ def skill_entry(object: str, time: float, attribute: str = "translateX") -> dict
 
 
 if __name__ == "__main__":
+    import inspect
     params = json.loads(sys.argv[1]) if len(sys.argv) > 1 else {}
-    result = skill_entry(**params)
+    sig = inspect.signature(skill_entry)
+    filtered = {k: v for k, v in params.items() if k in sig.parameters}
+    result = skill_entry(**filtered)
     print(json.dumps(result))

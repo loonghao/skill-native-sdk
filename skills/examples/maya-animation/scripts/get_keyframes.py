@@ -9,6 +9,8 @@ from typing import Any
 def skill_entry(object: str) -> dict[str, Any]:
     """Return all keyframe times for *object*."""
     try:
+        import maya.standalone  # type: ignore[import]
+        maya.standalone.initialize()
         import maya.cmds as cmds  # type: ignore[import]
         frames = cmds.keyframe(object, query=True, timeChange=True) or []
     except ImportError:
@@ -24,6 +26,10 @@ def skill_entry(object: str) -> dict[str, Any]:
 
 
 if __name__ == "__main__":
+    import inspect
     params = json.loads(sys.argv[1]) if len(sys.argv) > 1 else {}
-    result = skill_entry(**params)
+    # Filter to only params accepted by skill_entry
+    sig = inspect.signature(skill_entry)
+    filtered = {k: v for k, v in params.items() if k in sig.parameters}
+    result = skill_entry(**filtered)
     print(json.dumps(result))

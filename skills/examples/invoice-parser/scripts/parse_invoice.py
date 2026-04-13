@@ -42,6 +42,9 @@ def skill_entry(file_path: str, currency: str = "USD") -> dict[str, Any]:
 
 
 if __name__ == "__main__":
+    import inspect
     params = json.loads(sys.argv[1]) if len(sys.argv) > 1 else {}
-    result = skill_entry(**params)
+    sig = inspect.signature(skill_entry)
+    filtered = {k: v for k, v in params.items() if k in sig.parameters}
+    result = skill_entry(**filtered)
     print(json.dumps(result))

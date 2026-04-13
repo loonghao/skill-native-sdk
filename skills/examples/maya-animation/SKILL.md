@@ -77,7 +77,11 @@ tools:
       suggest: [get_keyframes]
 
 runtime:
-  type: python
+  # type: subprocess  → skn 會以獨立子進程呼叫 interpreter
+  # 有 Maya 時改為: interpreter: mayapy
+  # 或者完整路徑: interpreter: "C:/Program Files/Autodesk/Maya2025/bin/mayapy.exe"
+  type: subprocess
+  interpreter: python
   entry: skill_entry
 
 permissions:

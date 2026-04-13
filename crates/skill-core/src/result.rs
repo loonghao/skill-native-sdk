@@ -11,11 +11,17 @@ use serde_json::Value;
 /// - [`ToolResult::to_mcp`]   — MCP `tool_result` wire format
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub struct ToolResult {
+    #[serde(default)]
     pub success: bool,
+    #[serde(default)]
     pub message: String,
+    #[serde(default)]
     pub data: Option<Value>,
+    #[serde(default)]
     pub next_actions: Vec<String>,
+    #[serde(default)]
     pub error: Option<String>,
+    #[serde(default)]
     pub metadata: std::collections::HashMap<String, Value>,
 }
 

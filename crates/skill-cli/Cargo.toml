@@ -23,5 +23,9 @@ pyo3 = { workspace = true, optional = true }
 default = []
 python-bindings = ["pyo3"]
 
+[[bin]]
+name = "skn"
+path = "src/main.rs"
+
 [dev-dependencies]
 serde_json.workspace = true
