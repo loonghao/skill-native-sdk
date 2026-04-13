@@ -74,7 +74,7 @@ jobs:
           name: rust-coverage
           fail_ci_if_error: false
 
-  # ── Build ABI3 wheel (one per OS, reused by python-test) ─────────────────
+  # ── Build ABI3 wheel for Python 3.8+ (one per OS, reused by python-test) ──
   build-wheel:
     name: Build wheel (${{ matrix.os }})
     needs: [rust-check]
@@ -91,14 +91,34 @@ jobs:
           python-version: '3.12'
           artifact-name: wheel-${{ matrix.os }}
 
-  # ── Python tests: matrix over OS × Python versions ───────────────────────
+  # ── Build non-ABI3 cp37 wheel (Python 3.7, per OS) ────────────────────────
+  # PyO3's abi3 doesn't support Python 3.7, so we build a regular cp37 wheel.
+  build-wheel-py37:
+    name: Build wheel py37 (${{ matrix.os }})
+    needs: [rust-check]
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+      fail-fast: false
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: extractions/setup-just@v4
+      - uses: ./.github/actions/build-wheel
+        with:
+          python-version: '3.7'
+          # No abi3-py38 feature — this produces a cpython-specific cp37 wheel
+          maturin-args: '--release --out dist --find-interpreter --features python-bindings,ext-module'
+          artifact-name: wheel-py37-${{ matrix.os }}
+
+  # ── Python tests: matrix over OS × Python versions (3.8+, ABI3 wheel) ────
   python-test:
     name: Test (${{ matrix.os }}, py${{ matrix.python-version }})
     needs: [build-wheel]
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        python-version: ["3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12", "3.13"]
       fail-fast: false
     runs-on: ${{ matrix.os }}
     steps:
@@ -107,7 +127,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - uses: extractions/setup-just@v4
-      - name: Download wheel
+      - name: Download ABI3 wheel
         uses: actions/download-artifact@v8
         with:
           name: wheel-${{ matrix.os }}
@@ -127,6 +147,36 @@ jobs:
           flags: python
           name: python-coverage
           fail_ci_if_error: false
+
+  # ── Python 3.7 test (cp37 non-ABI3 wheel) ─────────────────────────────────
+  python-test-py37:
+    name: Test (${{ matrix.os }}, py3.7)
+    needs: [build-wheel-py37]
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+      fail-fast: false
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.7'
+      - uses: extractions/setup-just@v4
+      - name: Download cp37 wheel
+        uses: actions/download-artifact@v8
+        with:
+          name: wheel-py37-${{ matrix.os }}
+          path: dist/
+      - name: Install wheel + test deps
+        shell: bash
+        run: |
+          pip install --no-index --find-links dist skill-native-sdk
+          pip install "pytest>=7.0" "pytest-cov>=4.0" pyyaml
+          # pydantic is NOT installed for Python 3.7 (v2 requires 3.8+)
+          # tests that need pydantic are automatically skipped via pytest markers
+      - name: Test with coverage (Rust-only mode)
+        run: just test-cov
 
   # ── Lint Python source ────────────────────────────────────────────────────
   lint:

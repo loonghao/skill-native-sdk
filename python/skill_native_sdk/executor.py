@@ -6,7 +6,7 @@ import json
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, Dict, Optional
 
 from .models import SkillSpec, ToolMeta, ToolResult
 from .registry import SkillRegistry
@@ -22,7 +22,7 @@ class SkillExecutor:
         self,
         skill_name: str,
         tool_name: str,
-        params: dict[str, Any] | None = None,
+        params: Optional[Dict[str, Any]] = None,
         output_format: str = "json",
     ) -> ToolResult:
         """Execute a tool from a skill.
@@ -61,7 +61,7 @@ class SkillExecutor:
     # ------------------------------------------------------------------
 
     def _run_python_inprocess(
-        self, spec: SkillSpec, tool: ToolMeta, params: dict[str, Any]
+        self, spec: SkillSpec, tool: ToolMeta, params: Dict[str, Any]
     ) -> ToolResult:
         """Import and call a Python skill script in-process."""
         if not tool.source_file:
@@ -95,7 +95,7 @@ class SkillExecutor:
             return ToolResult.fail(error=f"{type(exc).__name__}: {exc}")
 
     def _run_subprocess(
-        self, spec: SkillSpec, tool: ToolMeta, params: dict[str, Any]
+        self, spec: SkillSpec, tool: ToolMeta, params: Dict[str, Any]
     ) -> ToolResult:
         """Run a skill script as a subprocess (supports mayapy / hython etc.)."""
         if not tool.source_file:
@@ -121,7 +121,7 @@ class SkillExecutor:
             return ToolResult.fail(error=f"{type(exc).__name__}: {exc}")
 
     def _run_http(
-        self, spec: SkillSpec, tool: ToolMeta, params: dict[str, Any]
+        self, spec: SkillSpec, tool: ToolMeta, params: Dict[str, Any]
     ) -> ToolResult:
         """Placeholder for HTTP bridge execution."""
         return ToolResult.fail(error="HTTP runtime not yet implemented")

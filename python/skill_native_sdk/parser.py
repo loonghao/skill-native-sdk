@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Any
+from typing import Any, Dict, List, Optional, Union
 
 import yaml
 
@@ -24,7 +24,7 @@ _YAML_FENCE = re.compile(r"```ya?ml\s*\n(.*?)```", re.DOTALL)
 _FRONTMATTER = re.compile(r"^---\s*\n(.*?)\n---", re.DOTALL)
 
 
-def _extract_yaml(text: str) -> dict[str, Any]:
+def _extract_yaml(text: str) -> Dict[str, Any]:
     """Extract YAML from fenced block or front-matter, or parse the whole file."""
     # 1. Try YAML front-matter
     m = _FRONTMATTER.match(text)
@@ -55,7 +55,7 @@ def _parse_field_schema(raw: Any) -> FieldSchema:
     return FieldSchema()
 
 
-def _parse_tool(raw: dict[str, Any]) -> ToolMeta:
+def _parse_tool(raw: Dict[str, Any]) -> ToolMeta:
     # Parse input fields
     input_raw = raw.pop("input", {}) or {}
     input_parsed = {k: _parse_field_schema(v) for k, v in input_raw.items()}
@@ -82,7 +82,7 @@ def _parse_tool(raw: dict[str, Any]) -> ToolMeta:
 # Public API
 # ---------------------------------------------------------------------------
 
-def parse_skill_md(path: str | Path) -> SkillSpec | None:
+def parse_skill_md(path: Union[str, Path]) -> Optional[SkillSpec]:
     """Parse a SKILL.md file or a directory containing one.
 
     Args:
@@ -109,7 +109,7 @@ def parse_skill_md(path: str | Path) -> SkillSpec | None:
         return None
 
     # Parse tools list
-    tools_raw: list[dict[str, Any]] = data.pop("tools", []) or []
+    tools_raw: List[Dict[str, Any]] = data.pop("tools", []) or []
     tools = [_parse_tool(dict(t)) for t in tools_raw if isinstance(t, dict)]
 
     # Parse runtime
@@ -133,14 +133,14 @@ def parse_skill_md(path: str | Path) -> SkillSpec | None:
     )
 
 
-def scan_and_load(directory: str | Path) -> list[SkillSpec]:
+def scan_and_load(directory: Union[str, Path]) -> List[SkillSpec]:
     """Recursively scan *directory* for SKILL.md files and return all parsed specs.
 
     Unlike some previous implementations this correctly handles skills that
     have only a SKILL.md without a ``scripts/`` subdirectory.
     """
     root = Path(directory)
-    specs: list[SkillSpec] = []
+    specs: List[SkillSpec] = []
     for skill_file in root.rglob("SKILL.md"):
         spec = parse_skill_md(skill_file.parent)
         if spec is not None:

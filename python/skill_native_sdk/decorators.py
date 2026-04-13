@@ -4,7 +4,7 @@ from __future__ import annotations
 import functools
 import inspect
 import sys
-from typing import Any, Callable, TypeVar
+from typing import Any, Callable, List, Optional, TypeVar
 
 from .models import ToolResult
 
@@ -38,7 +38,7 @@ def skill_entry(func: F) -> F:
     return wrapper  # type: ignore[return-value]
 
 
-def skill_success(message: str, data: Any = None, next_actions: list[str] | None = None) -> ToolResult:
+def skill_success(message: str, data: Any = None, next_actions: Optional[List[str]] = None) -> ToolResult:
     """Convenience helper — build a successful :class:`ToolResult`."""
     return ToolResult.ok(message=message, data=data, next_actions=next_actions or [])
 
@@ -63,7 +63,7 @@ def run_main(entry_fn: Callable[..., ToolResult], output: str = "json") -> None:
     import json
 
     # Very simple: parse --key value pairs from sys.argv
-    params: dict[str, Any] = {}
+    params: Any = {}
     args = sys.argv[1:]
     i = 0
     while i < len(args):

@@ -2,6 +2,15 @@
 from __future__ import annotations
 
 import json
+import sys
+
+import pytest
+
+# ToolResult Pydantic model requires Python 3.8+
+pytestmark = pytest.mark.skipif(
+    sys.version_info < (3, 8),
+    reason="Pydantic-based ToolResult requires Python 3.8+",
+)
 
 from skill_native_sdk.models import ToolResult
 

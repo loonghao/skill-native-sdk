@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Iterator
+from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 
 from .models import SkillSpec, ToolMeta
 from .parser import parse_skill_md, scan_and_load
@@ -12,14 +12,14 @@ class SkillRegistry:
     """Central registry for all loaded :class:`SkillSpec` objects."""
 
     def __init__(self) -> None:
-        self._specs: dict[str, SkillSpec] = {}  # keyed by skill name
+        self._specs: Dict[str, SkillSpec] = {}  # keyed by skill name
 
     # ------------------------------------------------------------------
     # Construction helpers
     # ------------------------------------------------------------------
 
     @classmethod
-    def from_path(cls, directory: str | Path) -> "SkillRegistry":
+    def from_path(cls, directory: Union[str, Path]) -> "SkillRegistry":
         """Recursively scan *directory* and register all SKILL.md skills."""
         registry = cls()
         for spec in scan_and_load(directory):
@@ -40,7 +40,7 @@ class SkillRegistry:
         """Add a :class:`SkillSpec` to the registry (overwrites existing name)."""
         self._specs[spec.name] = spec
 
-    def load_file(self, path: str | Path) -> SkillSpec | None:
+    def load_file(self, path: Union[str, Path]) -> Optional[SkillSpec]:
         """Parse a single SKILL.md and register it. Returns the spec or None."""
         spec = parse_skill_md(path)
         if spec:
@@ -51,16 +51,16 @@ class SkillRegistry:
     # Query
     # ------------------------------------------------------------------
 
-    def get(self, name: str) -> SkillSpec | None:
+    def get(self, name: str) -> Optional[SkillSpec]:
         return self._specs.get(name)
 
-    def list(self, domain: str | None = None) -> list[SkillSpec]:
+    def list(self, domain: Optional[str] = None) -> List[SkillSpec]:
         specs = list(self._specs.values())
         if domain:
             specs = [s for s in specs if s.domain == domain]
         return specs
 
-    def get_tool(self, skill_name: str, tool_name: str) -> tuple[SkillSpec, ToolMeta] | None:
+    def get_tool(self, skill_name: str, tool_name: str) -> Optional[Tuple[SkillSpec, ToolMeta]]:
         spec = self.get(skill_name)
         if spec is None:
             return None
@@ -69,20 +69,20 @@ class SkillRegistry:
             return None
         return spec, tool
 
-    def domains(self) -> list[str]:
+    def domains(self) -> List[str]:
         return sorted({s.domain for s in self._specs.values()})
 
     # ------------------------------------------------------------------
     # CapabilityGraph
     # ------------------------------------------------------------------
 
-    def capability_graph(self, skill_name: str) -> dict:
+    def capability_graph(self, skill_name: str) -> Dict[str, Any]:
         """Return the capability graph for a given skill (for LLM context)."""
         spec = self.get(skill_name)
         if spec is None:
             return {}
 
-        graph: dict[str, dict] = {}
+        graph: Dict[str, Any] = {}
         for tool in spec.tools:
             graph[tool.name] = {
                 "description": tool.description,

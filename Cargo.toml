@@ -73,5 +73,7 @@ python-bindings = [
     "skill-core/python-bindings",
     "skill-runtime/python-bindings",
 ]
-abi3-py310 = ["pyo3/abi3-py310"]
+# abi3-py38: one wheel for Python 3.8, 3.9, 3.10, 3.11, 3.12, 3.13+
+# Python 3.7 gets a separate cp37 wheel built WITHOUT this feature.
+abi3-py38 = ["pyo3/abi3-py38"]
 ext-module = ["pyo3/extension-module"]

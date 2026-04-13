@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "SKILL.md → anywhere. Write once in SKILL.md, deploy as MCP / OpenAI / LangChain / REST."
 readme = "README.md"
 license = { text = "MIT" }
-requires-python = ">=3.10"
+requires-python = ">=3.7"
 authors = [
     { name = "Hal", email = "13111745+loonghao@users.noreply.github.com" },
 ]
@@ -18,17 +18,26 @@ classifiers = [
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 
 dependencies = [
-    "pyyaml>=6.0",
-    "pydantic>=2.0",
-    "typer>=0.12",
-    "rich>=13.0",
+    # Core YAML parser (pure-Python fallback)
+    "pyyaml>=5.1",
+    # Pydantic models — Python 3.8+ only (pydantic v2 requires 3.8+)
+    "pydantic>=2.0; python_version >= '3.8'",
+    # Typing backports for Python 3.7
+    "typing-extensions>=3.7.4; python_version < '3.8'",
+    # CLI — typer+rich work on 3.7+
+    "typer>=0.9",
+    "rich>=12.0",
 ]
 
 [project.optional-dependencies]
@@ -37,11 +46,12 @@ openai = ["openai>=1.0"]
 langchain = ["langchain-core>=0.2"]
 rest = ["fastapi>=0.110", "uvicorn>=0.29"]
 dev = [
-    "pytest>=8.0",
-    "pytest-asyncio>=0.23",
-    "pytest-cov>=5.0",
+    "pytest>=7.0",
+    "pytest-asyncio>=0.21",
+    "pytest-cov>=4.0",
     "ruff>=0.4",
-    "mypy>=1.10",
+    "mypy>=1.0",
+    "pydantic>=2.0",
 ]
 
 [project.scripts]
@@ -59,18 +69,19 @@ python-source = "python"
 features = ["python-bindings", "ext-module"]
 # The extension module name matches `fn _skill_native_core` in src/lib.rs
 module-name = "skill_native_sdk._skill_native_core"
-# Build for abi3 (stable ABI) — one wheel for all Python 3.10+
+# Build for abi3 (stable ABI) — one wheel for all Python 3.8+
+# Python 3.7 gets a separate non-abi3 cp37 wheel (see build-wheels.yml)
 python-packages = ["skill_native_sdk"]
 
 [tool.ruff]
 line-length = 100
-target-version = "py310"
+target-version = "py37"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP"]
 
 [tool.mypy]
-python_version = "3.10"
+python_version = "3.7"
 strict = true
 
 [tool.pytest.ini_options]

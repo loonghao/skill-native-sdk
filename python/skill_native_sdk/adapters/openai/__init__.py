@@ -1,13 +1,13 @@
 """OpenAI function-calling adapter for skill-native-sdk."""
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Dict, List
 
 from ...models import ToolMeta
 from ...registry import SkillRegistry
 
 
-def to_openai_functions(registry: SkillRegistry) -> list[dict[str, Any]]:
+def to_openai_functions(registry: SkillRegistry) -> List[Dict[str, Any]]:
     """Convert a SkillRegistry to OpenAI function-calling format.
 
     Returns a list of ``{"type": "function", "function": {...}}`` dicts
@@ -20,12 +20,12 @@ def to_openai_functions(registry: SkillRegistry) -> list[dict[str, Any]]:
     return functions
 
 
-def _tool_to_openai(skill_name: str, tool: ToolMeta) -> dict[str, Any]:
-    properties: dict[str, Any] = {}
-    required: list[str] = []
+def _tool_to_openai(skill_name: str, tool: ToolMeta) -> Dict[str, Any]:
+    properties: Dict[str, Any] = {}
+    required: List[str] = []
 
     for field_name, field_schema in tool.input.items():
-        prop: dict[str, Any] = {"type": field_schema.type, "description": field_schema.description}
+        prop: Dict[str, Any] = {"type": field_schema.type, "description": field_schema.description}
         if field_schema.enum:
             prop["enum"] = field_schema.enum
         properties[field_name] = prop

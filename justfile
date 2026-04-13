@@ -56,9 +56,14 @@ dev:
     pip install maturin -q 2>$null
     maturin develop --features python-bindings,ext-module
 
-# Build ABI3 wheel + pip install (CI-friendly, no virtualenv required)
+# Build ABI3 wheel for Python 3.8+ + pip install (CI-friendly)
 install:
-    maturin build --release --out dist --features python-bindings,ext-module,abi3-py310
+    maturin build --release --out dist --features python-bindings,ext-module,abi3-py38
+    pip install --force-reinstall --no-index --find-links dist skill-native-sdk
+
+# Build non-ABI3 cp37 wheel for Python 3.7
+install-py37:
+    maturin build --release --out dist --interpreter python3.7 --features python-bindings,ext-module
     pip install --force-reinstall --no-index --find-links dist skill-native-sdk
 
 # Run Python tests (requires `just dev` or `just install` first)
@@ -92,9 +97,13 @@ preflight: check clippy fmt-check test-rust
 # Full CI pipeline (Rust + Python)
 ci: preflight install test lint-py
 
-# Build release wheels (ABI3)
+# Build ABI3 release wheels (Python 3.8+)
 build:
-    maturin build --release --features python-bindings,ext-module,abi3-py310
+    maturin build --release --features python-bindings,ext-module,abi3-py38
+
+# Build non-ABI3 cp37 wheel (Python 3.7)
+build-py37:
+    maturin build --release --interpreter python3.7 --features python-bindings,ext-module
 
 # ── Docs ──────────────────────────────────────────────────────────────────────
 

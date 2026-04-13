@@ -3,20 +3,20 @@ from __future__ import annotations
 
 import json
 import sys
-from typing import Any
+from typing import Any, Dict, List, Optional
 
 from ...executor import SkillExecutor
 from ...models import ToolMeta
 from ...registry import SkillRegistry
 
 
-def _tool_to_mcp_schema(skill_name: str, tool: ToolMeta) -> dict[str, Any]:
+def _tool_to_mcp_schema(skill_name: str, tool: ToolMeta) -> Dict[str, Any]:
     """Convert a ToolMeta to MCP tools/list entry format."""
-    properties: dict[str, Any] = {}
-    required: list[str] = []
+    properties: Dict[str, Any] = {}
+    required: List[str] = []
 
     for field_name, field_schema in tool.input.items():
-        prop: dict[str, Any] = {"type": field_schema.type, "description": field_schema.description}
+        prop: Dict[str, Any] = {"type": field_schema.type, "description": field_schema.description}
         if field_schema.enum:
             prop["enum"] = field_schema.enum
         if field_schema.default is not None:
@@ -27,7 +27,7 @@ def _tool_to_mcp_schema(skill_name: str, tool: ToolMeta) -> dict[str, Any]:
 
     # Build description with safety hints
     description = tool.description
-    hints: list[str] = []
+    hints: List[str] = []
     if tool.read_only:
         hints.append("read-only")
     if tool.destructive:
@@ -69,9 +69,9 @@ class MCPServer:
         self.registry = registry
         self.executor = SkillExecutor(registry)
         self.name = name
-        self._tools: list[dict[str, Any]] = self._build_tool_list()
+        self._tools: List[Dict[str, Any]] = self._build_tool_list()
 
-    def _build_tool_list(self) -> list[dict[str, Any]]:
+    def _build_tool_list(self) -> List[Dict[str, Any]]:
         tools = []
         for spec in self.registry:
             for tool in spec.tools:
@@ -82,7 +82,7 @@ class MCPServer:
     # MCP message handlers
     # ------------------------------------------------------------------
 
-    def handle_initialize(self, msg: dict[str, Any]) -> dict[str, Any]:
+    def handle_initialize(self, msg: Dict[str, Any]) -> Dict[str, Any]:
         return {
             "jsonrpc": "2.0",
             "id": msg.get("id"),
@@ -93,14 +93,14 @@ class MCPServer:
             },
         }
 
-    def handle_tools_list(self, msg: dict[str, Any]) -> dict[str, Any]:
+    def handle_tools_list(self, msg: Dict[str, Any]) -> Dict[str, Any]:
         public_tools = [{k: v for k, v in t.items() if not k.startswith("_")} for t in self._tools]
         return {"jsonrpc": "2.0", "id": msg.get("id"), "result": {"tools": public_tools}}
 
-    def handle_tools_call(self, msg: dict[str, Any]) -> dict[str, Any]:
+    def handle_tools_call(self, msg: Dict[str, Any]) -> Dict[str, Any]:
         params = msg.get("params", {})
         tool_name: str = params.get("name", "")
-        arguments: dict[str, Any] = params.get("arguments", {})
+        arguments: Dict[str, Any] = params.get("arguments", {})
 
         # Find the matching tool entry
         entry = next((t for t in self._tools if t["name"] == tool_name), None)
@@ -141,7 +141,7 @@ class MCPServer:
     # Transport
     # ------------------------------------------------------------------
 
-    def handle_message(self, msg: dict[str, Any]) -> dict[str, Any] | None:
+    def handle_message(self, msg: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         method = msg.get("method", "")
         if method == "initialize":
             return self.handle_initialize(msg)

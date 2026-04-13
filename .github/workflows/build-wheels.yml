@@ -20,7 +20,7 @@ permissions:
   contents: read
 
 jobs:
-  # ── ABI3 builds (Python 3.10+) — one wheel per OS works for all 3.10+ ──
+  # ── ABI3 builds (Python 3.8+) — one wheel per OS works for all 3.8+ ──────
 
   linux:
     name: Linux x86_64
@@ -66,8 +66,59 @@ jobs:
         with:
           target: universal2-apple-darwin
           python-version: '3.12'
-          maturin-args: '--release --out dist --sdist --find-interpreter --features python-bindings,ext-module,abi3-py310'
+          maturin-args: '--release --out dist --sdist --find-interpreter --features python-bindings,ext-module,abi3-py38'
           artifact-name: wheels-macos-universal2
+
+  # ── Python 3.7 wheels (non-ABI3 cp37) ─────────────────────────────────────
+  # PyO3 abi3 requires Python 3.8+. For 3.7 we build regular cpython wheels.
+
+  linux-py37:
+    name: Linux x86_64 (py3.7)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/build-wheel
+        with:
+          target: x86_64
+          python-version: '3.7'
+          maturin-args: '--release --out dist --find-interpreter --features python-bindings,ext-module'
+          artifact-name: wheels-linux-x86_64-py37
+
+  linux-aarch64-py37:
+    name: Linux aarch64 (py3.7)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/build-wheel
+        with:
+          target: aarch64
+          python-version: '3.7'
+          maturin-args: '--release --out dist --find-interpreter --features python-bindings,ext-module'
+          artifact-name: wheels-linux-aarch64-py37
+          test-wheel: 'false'
+
+  windows-py37:
+    name: Windows x64 (py3.7)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/build-wheel
+        with:
+          target: x64
+          python-version: '3.7'
+          maturin-args: '--release --out dist --find-interpreter --features python-bindings,ext-module'
+          artifact-name: wheels-windows-x64-py37
+
+  macos-py37:
+    name: macOS (py3.7)
+    runs-on: macos-13  # last macOS with Python 3.7 support
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/build-wheel
+        with:
+          python-version: '3.7'
+          maturin-args: '--release --out dist --find-interpreter --features python-bindings,ext-module'
+          artifact-name: wheels-macos-py37
 
   # ── Source distribution ────────────────────────────────────────────────────
   sdist:

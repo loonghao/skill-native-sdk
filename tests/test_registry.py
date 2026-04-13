@@ -1,10 +1,17 @@
 """Tests for SkillRegistry."""
 from __future__ import annotations
 
+import sys
 import textwrap
 from pathlib import Path
 
 import pytest
+
+# SkillRegistry depends on Pydantic (Python 3.8+)
+pytestmark = pytest.mark.skipif(
+    sys.version_info < (3, 8),
+    reason="Pydantic-based SkillRegistry requires Python 3.8+",
+)
 
 from skill_native_sdk import SkillRegistry, parse_skill_md
 from skill_native_sdk.models import SkillSpec
