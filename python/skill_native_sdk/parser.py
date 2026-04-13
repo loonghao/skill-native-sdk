@@ -3,11 +3,21 @@
 Primary path  : Rust ``_skill_native_core`` (always available in the wheel).
 Fallback path : Pure-stdlib minimal YAML front-matter parser (for development
                 without a compiled extension, e.g. ``pip install -e . --no-build-isolation``).
+
+Skills discovery inspired by (not copied from) dcc-mcp-core and Codex:
+- Layered discovery: Repo > User > System scope
+- Environment variable ``SKILL_NATIVE_PATHS`` for additional search paths
+- Optional ``dcc_name`` filter to load only skills for a specific DCC
+- ``include_bundled`` flag to include skills bundled in the wheel
 """
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
+
+# Environment variable name for additional skill search paths (colon-separated on Unix, semicolon on Windows)
+ENV_SKILL_PATHS = "SKILL_NATIVE_PATHS"
 
 from .models import (
     ChainHint,
@@ -293,16 +303,100 @@ def parse_skill_md(path: Union[str, Path]) -> Optional[SkillSpec]:
     return _stdlib_parse(text, source_dir)
 
 
-def scan_and_load(directory: Union[str, Path]) -> List[SkillSpec]:
-    """Recursively scan *directory* for SKILL.md files."""
-    root = Path(directory)
+def scan_and_load(
+    directory: Union[str, Path, None] = None,
+    *,
+    dcc_name: Optional[str] = None,
+    include_bundled: bool = False,
+    extra_paths: Optional[List[Union[str, Path]]] = None,
+) -> List[SkillSpec]:
+    """Recursively scan directories for SKILL.md files and return parsed specs.
 
+    Discovery order (highest priority first):
+    1. ``directory`` — the explicit directory argument (if given)
+    2. Paths from ``extra_paths`` argument
+    3. Paths from ``SKILL_NATIVE_PATHS`` environment variable (colon/semicolon separated)
+    4. Bundled skills shipped inside the wheel (when ``include_bundled=True``)
+
+    Args:
+        directory: Root directory to scan. If ``None``, only env-var and bundled
+            paths are used. Supports progressive / Repo-scoped discovery when
+            set to the current working directory.
+        dcc_name: Optional filter — only return skills whose ``domain`` matches
+            this value (case-insensitive). E.g. ``"maya"``, ``"blender"``.
+        include_bundled: If ``True``, also scan the skills bundled inside the
+            installed wheel. Defaults to ``False`` to avoid unexpected results.
+        extra_paths: Additional directories to scan (appended after ``directory``).
+
+    Returns:
+        List of :class:`SkillSpec` objects, deduplicated by skill name
+        (higher-priority sources win).
+    """
+    # Build ordered search roots (highest priority first)
+    search_roots: List[Path] = []
+
+    if directory is not None:
+        search_roots.append(Path(directory))
+
+    for p in (extra_paths or []):
+        search_roots.append(Path(p))
+
+    # Environment variable paths
+    env_val = os.environ.get(ENV_SKILL_PATHS, "")
+    if env_val:
+        sep = ";" if os.name == "nt" else ":"
+        for part in env_val.split(sep):
+            part = part.strip()
+            if part:
+                search_roots.append(Path(part))
+
+    # Bundled wheel skills (lowest priority)
+    if include_bundled:
+        from .decorators import _BUNDLED_SKILLS_DIR
+        if _BUNDLED_SKILLS_DIR.is_dir():
+            search_roots.append(_BUNDLED_SKILLS_DIR)
+
+    # Collect specs from all roots, deduplicating by name (first seen wins)
+    seen_names: set = set()
+    specs: List[SkillSpec] = []
+
+    for root in search_roots:
+        if not root.is_dir():
+            continue
+        root_specs = _scan_root(root)
+        for spec in root_specs:
+            # Apply dcc_name filter
+            if dcc_name is not None and spec.domain.lower() != dcc_name.lower():
+                continue
+            # Deduplicate by skill name
+            if spec.name not in seen_names:
+                seen_names.add(spec.name)
+                specs.append(spec)
+
+    return specs
+
+
+def _scan_root(root: Path) -> List[SkillSpec]:
+    """Scan a single root directory for SKILL.md files (internal helper)."""
     if _RUST_AVAILABLE:
         return [_rust_spec_to_python(rs) for rs in _rust_core.scan_and_load(str(root))]
 
-    specs: List[SkillSpec] = []
+    result: List[SkillSpec] = []
     for skill_file in root.rglob("SKILL.md"):
         spec = parse_skill_md(skill_file.parent)
         if spec is not None:
-            specs.append(spec)
-    return specs
+            result.append(spec)
+    return result
+
+
+def get_skill_paths_from_env() -> List[str]:
+    """Return skill search paths from the ``SKILL_NATIVE_PATHS`` environment variable.
+
+    Returns:
+        List of directory paths from the environment variable, or ``[]`` if unset.
+    """
+    env_val = os.environ.get(ENV_SKILL_PATHS, "")
+    if not env_val:
+        return []
+    sep = ";" if os.name == "nt" else ":"
+    return [p.strip() for p in env_val.split(sep) if p.strip()]
