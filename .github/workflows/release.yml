@@ -63,7 +63,7 @@ jobs:
       contents: write
     steps:
       - name: Download all wheel artifacts
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@v4
         with:
           pattern: wheels-*
           path: dist
@@ -81,7 +81,7 @@ jobs:
           print-hash: true
 
       - name: Attach wheels to GitHub Release
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.release-please.outputs.tag_name }}
           files: dist/*
@@ -103,6 +103,7 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
 
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable

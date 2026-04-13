@@ -26,13 +26,13 @@ jobs:
       fail-fast: false
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy, rustfmt
-      - uses: extractions/setup-just@v4
+      - uses: extractions/setup-just@v2
       - name: Cache Cargo
-        uses: actions/cache@v5
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry/index/
@@ -50,10 +50,10 @@ jobs:
     needs: [rust-check]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - name: Cache Cargo
-        uses: actions/cache@v5
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry/index/
@@ -84,8 +84,8 @@ jobs:
       fail-fast: false
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v6
-      - uses: extractions/setup-just@v4
+      - uses: actions/checkout@v4
+      - uses: extractions/setup-just@v2
       - uses: ./.github/actions/build-wheel
         with:
           python-version: '3.12'
@@ -102,8 +102,8 @@ jobs:
       fail-fast: false
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v6
-      - uses: extractions/setup-just@v4
+      - uses: actions/checkout@v4
+      - uses: extractions/setup-just@v2
       - uses: ./.github/actions/build-wheel
         with:
           python-version: '3.7'
@@ -122,11 +122,11 @@ jobs:
       fail-fast: false
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - uses: extractions/setup-just@v4
+      - uses: extractions/setup-just@v2
       - name: Download ABI3 wheel
         uses: actions/download-artifact@v8
         with:
@@ -158,11 +158,11 @@ jobs:
       fail-fast: false
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.7'
-      - uses: extractions/setup-just@v4
+      - uses: extractions/setup-just@v2
       - name: Download cp37 wheel
         uses: actions/download-artifact@v8
         with:
@@ -183,11 +183,11 @@ jobs:
     name: Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
-      - uses: extractions/setup-just@v4
+      - uses: extractions/setup-just@v2
       - name: Install ruff
         run: pip install ruff
       - name: Lint
