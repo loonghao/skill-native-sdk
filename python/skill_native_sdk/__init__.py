@@ -1,33 +1,21 @@
 """skill-native-sdk — SKILL.md → anywhere.
 
 Write once in SKILL.md, deploy as MCP / OpenAI / LangChain / REST.
+Zero third-party Python dependencies — all heavy lifting is in the Rust core.
 
-Architecture
-------------
-The SDK has two layers that work together:
+Layers
+------
+1. **Rust core** (``_skill_native_core``, built by maturin):
+   - SKILL.md v2 YAML parser (BFS + lazy loading + layered discovery)
+   - Lock-free ``ResultCache`` (DashMap)
+   - DAG scheduler for parallel ``read_only`` tools
+   - ``SafetyChecker`` for destructive/idempotent semantics
+   - ``SkillsManager`` — cwd-keyed progressive discovery
 
-1. **Rust core** (``_skill_native_core`` extension module, built by maturin):
-   - Zero-copy YAML parser for SKILL.md v2
-   - Lock-free ResultCache (DashMap)
-   - DAG scheduler for parallel read-only tools
-   - SafetyChecker enforcing destructive/idempotent semantics
-   - All exposed via PyO3 as ``RustSkillSpec``, ``RustToolResult``, etc.
-
-2. **Python layer** (this package):
-   - ``SkillRegistry`` — load, index, query skills
-   - ``SkillExecutor`` — dispatch to Rust bridges
-   - ``MCPServer`` adapter, OpenAI adapter, LangChain adapter
-   - ``skill`` CLI
-
-The Python layer transparently uses the Rust implementation when the
-compiled extension is available, falling back to pure Python otherwise.
-"""
-
-"""skill-native-sdk — SKILL.md → anywhere.
-
-Zero third-party Python dependencies.
-All heavy lifting is done by the compiled Rust extension (_skill_native_core).
-The Python layer uses only stdlib (dataclasses, json, argparse, pathlib, …).
+2. **Python layer** (pure stdlib, Python 3.7+):
+   - ``SkillRegistry`` / ``SkillExecutor``
+   - Adapters: MCP · OpenAI · LangChain · REST
+   - ``skn`` CLI (delegates to ``_skill_native_core.run_cli``)
 """
 # ── Try to import compiled Rust core ──────────────────────────────────────────
 try:
@@ -47,7 +35,7 @@ from .registry import SkillRegistry
 __version__ = "0.1.0"
 
 __all__ = [
-    # Core models (stdlib dataclasses)
+    # Core models (stdlib dataclasses, zero deps)
     "SkillSpec",
     "ToolMeta",
     "ToolResult",
@@ -57,35 +45,14 @@ __all__ = [
     # Parser (Rust primary, stdlib fallback)
     "parse_skill_md",
     "scan_and_load",
-    # Registry
+    # Registry & executor
     "SkillRegistry",
-    # Executor
     "SkillExecutor",
-    # Decorators
+    # Decorators / helpers
     "skill_entry",
     "skill_success",
     "skill_error",
     "run_main",
-]
-
-__all__ = [
-    # Core models
-    "SkillSpec",
-    "ToolMeta",
-    "ToolResult",
-    "FieldSchema",
-    "RuntimeConfig",
-    "Permissions",
-    # Parser
-    "parse_skill_md",
-    "scan_and_load",
-    # Registry
-    "SkillRegistry",
-    # Executor
-    "SkillExecutor",
-    # Decorators
-    "skill_entry",
-    "skill_success",
-    "skill_error",
-    "run_main",
+    # Version
+    "__version__",
 ]

@@ -117,12 +117,14 @@ class MCPServer:
             if tool_meta and tool_meta.destructive:
                 confirmed = arguments.pop("__confirmed__", False)
                 if not confirmed:
+                    # isError=True signals the MCP host that confirmation is
+                    # needed — the tool was NOT executed.
                     return {
                         "jsonrpc": "2.0", "id": msg.get("id"),
                         "result": {"content": [{"type": "text", "text":
                             f"⚠️ Tool '{real_tool}' is destructive. "
                             "Re-call with __confirmed__=true to proceed."}],
-                            "isError": False},
+                            "isError": True},
                     }
 
         result = self.executor.execute(skill_name, real_tool, arguments)

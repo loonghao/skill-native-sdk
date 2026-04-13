@@ -123,5 +123,66 @@ class SkillExecutor:
     def _run_http(
         self, spec: SkillSpec, tool: ToolMeta, params: Dict[str, Any]
     ) -> ToolResult:
-        """Placeholder for HTTP bridge execution."""
-        return ToolResult.fail(error="HTTP runtime not yet implemented")
+        """Execute a tool over HTTP/JSON — zero third-party deps (urllib).
+
+        URL resolution (first match wins):
+        1. ``runtime.interpreter``  — treated as a base URL, e.g. ``http://localhost:8000``
+        2. ``runtime.entry``        — used as-is if it starts with ``http``
+        3. Fallback                 — ``http://localhost:8000/{skill_name}/{tool_name}``
+
+        The server must accept ``POST <url>/{tool_name}`` with a JSON body of
+        ``{"params": {...}}`` and respond with a JSON body that maps to
+        :class:`ToolResult` fields (``success``, ``message``, ``error``, etc.).
+        """
+        import urllib.error
+        import urllib.request
+
+        # Resolve target URL
+        base = spec.runtime.interpreter or spec.runtime.entry
+        if base and base.startswith(("http://", "https://")):
+            url = base.rstrip("/") + f"/{tool.name}"
+        else:
+            url = f"http://localhost:8000/{spec.name}/{tool.name}"
+
+        body = json.dumps({"params": params}).encode("utf-8")
+        req = urllib.request.Request(
+            url,
+            data=body,
+            method="POST",
+            headers={"Content-Type": "application/json", "Accept": "application/json"},
+        )
+
+        try:
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                raw = resp.read().decode("utf-8")
+                data = json.loads(raw)
+                if isinstance(data, dict):
+                    return ToolResult(
+                        success=bool(data.get("success", True)),
+                        message=str(data.get("message", "")),
+                        error=data.get("error") or None,
+                        data=data.get("data"),
+                        next_actions=list(data.get("next_actions") or []),
+                    )
+                # Unwrapped plain value
+                return ToolResult.ok(str(data), data=data)
+
+        except urllib.error.HTTPError as exc:
+            body_text = ""
+            try:
+                body_text = exc.read().decode("utf-8", errors="replace")
+            except Exception:
+                pass
+            return ToolResult.fail(
+                error=f"HTTP {exc.code} {exc.reason}: {body_text[:200]}",
+                message=f"HTTP error calling {url}",
+            )
+        except urllib.error.URLError as exc:
+            return ToolResult.fail(
+                error=f"Connection error: {exc.reason}",
+                message=f"Cannot reach {url}",
+            )
+        except json.JSONDecodeError as exc:
+            return ToolResult.fail(error=f"Invalid JSON response: {exc}")
+        except Exception as exc:  # noqa: BLE001
+            return ToolResult.fail(error=f"{type(exc).__name__}: {exc}")

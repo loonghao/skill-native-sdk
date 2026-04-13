@@ -82,7 +82,16 @@ def run_main(entry_fn: Callable[..., ToolResult], output: str = "json") -> None:
     sig = inspect.signature(entry_fn)
     filtered = {k: v for k, v in params.items() if k in sig.parameters}
 
-    result: ToolResult = entry_fn(**filtered)
+    try:
+        result: ToolResult = entry_fn(**filtered)
+        if not isinstance(result, ToolResult):
+            # Bare return value — wrap it
+            result = ToolResult.ok(str(result), data=result) if result is not None else ToolResult.ok(f"{entry_fn.__name__} completed")
+    except Exception as exc:  # noqa: BLE001
+        result = ToolResult.fail(
+            error=f"{type(exc).__name__}: {exc}",
+            message=f"Unhandled error in {entry_fn.__name__}",
+        )
 
     if output == "toon":
         print(json.dumps(result.to_toon()))
@@ -90,3 +99,4 @@ def run_main(entry_fn: Callable[..., ToolResult], output: str = "json") -> None:
         print(json.dumps(result.to_mcp()))
     else:
         print(json.dumps(result.to_dict()))
+    sys.exit(0 if result.success else 1)

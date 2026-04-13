@@ -51,6 +51,8 @@ def _rust_spec_to_python(rs: Any) -> SkillSpec:
                 type=fdata.get("type", "string"),
                 description=fdata.get("description", ""),
                 required=bool(fdata.get("required", False)),
+                default=fdata.get("default"),
+                enum=list(fdata.get("enum") or []) or None,
             )
         tools.append(t)
 
@@ -231,11 +233,13 @@ def _dict_to_spec(data: Dict[str, Any], source_dir: str) -> SkillSpec:
         )
         for fn, fv in (raw.get("input") or {}).items():
             if isinstance(fv, dict):
+                raw_enum = fv.get("enum")
                 t.input[fn] = FieldSchema(
                     type=str(fv.get("type", "string")),
                     description=str(fv.get("description", "")),
                     required=bool(fv.get("required", False)),
                     default=fv.get("default"),
+                    enum=list(raw_enum) if isinstance(raw_enum, list) else None,
                 )
             elif isinstance(fv, str):
                 t.input[fn] = FieldSchema(type=fv)
