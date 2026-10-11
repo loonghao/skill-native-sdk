@@ -129,7 +129,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: actions/setup-python@v6
         with:
-          python-version: '3.12'
+          python-version: '3.15'
       - name: Build sdist
         uses: PyO3/maturin-action@v1
         with:
