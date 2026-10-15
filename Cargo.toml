@@ -26,7 +26,7 @@ skill-runtime = { path = "crates/skill-runtime" }
 skill-cli     = { path = "crates/skill-cli" }
 
 # Shared external dependencies (single version across workspace)
-pyo3         = { version = "0.28", features = ["multiple-pymethods"] }
+pyo3         = { version = "0.30", features = ["multiple-pymethods"] }
 serde        = { version = "1.0", features = ["derive"] }
 serde_json   = "1.0"
 serde_yaml   = "0.9"
