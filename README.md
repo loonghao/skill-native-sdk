@@ -8,7 +8,7 @@
 <p align="center">
   <a href="https://pypi.org/project/skill-native-sdk/"><img src="https://badge.fury.io/py/skill-native-sdk.svg" alt="PyPI"></a>
   <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.7%2B-blue.svg" alt="Python 3.7+"></a>
-  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="MIT"></a>
+  <a href="https://www.apache.org/licenses/LICENSE-2.0"><img src="https://img.shields.io/badge/License-Apache--2.0-yellow.svg" alt="Apache-2.0"></a>
   <img src="https://img.shields.io/badge/core-Rust-orange.svg" alt="Rust core">
 </p>
 
@@ -230,4 +230,4 @@ just build      # ABI3 wheel (Python 3.8+)
 
 ## License
 
-MIT — see [LICENSE](LICENSE)
+Apache-2.0 — see [LICENSE](LICENSE), [NOTICE](NOTICE), and [TRADEMARKS.md](TRADEMARKS.md)

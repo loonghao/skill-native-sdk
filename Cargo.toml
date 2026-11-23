@@ -15,7 +15,7 @@ version = "0.1.0"
 edition = "2024"
 rust-version = "1.85"
 authors = ["Hal <13111745+loonghao@users.noreply.github.com>"]
-license = "MIT"
+license = "Apache-2.0"
 repository = "https://github.com/loonghao/skill-native-sdk"
 
 [workspace.dependencies]
