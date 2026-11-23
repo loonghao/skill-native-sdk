@@ -1,6 +1,6 @@
 TRADEMARKS
 
-"DCC-MCP", "DCC MCP", project names, logos, and other marks identify their
+"skill-native-sdk", project names, logos, and other marks identify their
 respective owners. The Apache-2.0 license grants copyright permissions only.
 It does not grant trademark rights or permission to imply endorsement.
 
